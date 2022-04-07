@@ -21,7 +21,15 @@ class Cemantix {
             CURLOPT_POSTFIELDS => "word=$word"
         ));
         $response = curl_exec($curl);
-        // echo "$response\n";
+        error_log($response);
+        $ret=new stdClass;
+        if (curl_errno($curl) > 0) {
+            error_log("curl_error:".curl_error($curl));
+            $ret->error=curl_error($curl);
+        }
+        else
+            $ret = json_decode($response);
+        curl_close($curl);
         return json_decode($response);
     }
 
