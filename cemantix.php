@@ -14,7 +14,7 @@ class Cemantix {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => "",
             CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
+            CURLOPT_TIMEOUT => 1,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => "POST",
@@ -109,32 +109,33 @@ class Cemantix {
         return $result;
     }
 
+    private static function print_row($row, $s_idx=null, $bold=false) {
+        if ($bold) echo "\033[1m";
+        echo sprintf('%4s', $row['idx']) .self::mb_str_pad($row['word'], 20, ' ', STR_PAD_LEFT)  . 
+            sprintf(" : %6.2f%% / %4s", $row['score'] * 100, $row['percentile'] > 0 ? $row['percentile'] : '');
+        if (!is_null($s_idx))
+            printf("%20s/%-3s", $s_idx+1, count(self::$s_cache));
+        echo "\033[0m\n";
+    }
 
     private static function print($word=null) {
         self::cls();
         if ($word!=null) {
             if (isset(self::$cache[$word])) {
-                echo sprintf('%4s', self::$cache[$word]['idx']) .self::mb_str_pad($word, 20, ' ', STR_PAD_LEFT)  . 
-                sprintf(" : %6.2f%% / %4s\n\n", self::$cache[$word]['score'] * 100, 
-                self::$cache[$word]['percentile'] > 0 ? self::$cache[$word]['percentile'] : '');
+                self::print_row(self::$cache[$word]);
+                echo "\n";
             } else {
                 echo "$word\n\n";
             }
         }
         usort(self::$s_cache, ['Cemantix', 'sorter']);
-        for ($hit = $i = 0 ; $i < self::$limit; $i++) {
-            if (!isset(self::$s_cache[$i]))
-                break ;
-            $t=self::$s_cache[$i];
-            if ($word == $t['word']) { echo "\033[1m"; $hit=1;}
-            echo sprintf('%4s', $t['idx']) .self::mb_str_pad($t['word'], 20, ' ', STR_PAD_LEFT)  . sprintf(" : %6.2f%% / %4s\n", $t['score'] * 100, $t['percentile'] > 0 ? $t['percentile'] : '');
-            if ($word == $t['word']) echo "\033[0m";
-        }
-        if ($hit==0 && $word != null && isset(self::$cache[$word])) {
-            $t=self::$cache[$word];
-            echo sprintf('%4s', $t['idx']) ."\033[1m".self::mb_str_pad($t['word'], 20, ' ', STR_PAD_LEFT)  . 
-            sprintf(" : %6.2f%% / %4s\n", $t['score'] * 100, 
-                $t['percentile'] > 0 ? $t['percentile'] : '') . "\033[0m";
+        $total=count(self::$s_cache);
+        foreach (self::$s_cache as $i => $t) {
+            if ($i < self::$limit) {
+                self::print_row($t,$i, $word == $t['word']);
+            } else if ($word == $t['word']) {
+                self::print_row($t,$i,true);
+            }
         }
     }
 
