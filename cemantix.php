@@ -1,16 +1,16 @@
 <?php
 
 class Cemantix {
-    static $cemantix='https://cemantix.herokuapp.com/score';
+    static $cemantix='https://cemantix.herokuapp.com/';
     static $cache_path="/tmp/";
     static $cache=[];
     static $s_cache=[];
     static $limit=20;
 
-    private static function postWord($word=null) {
+    private static function postWord($action, $word=null) {
         $curl = curl_init();
         curl_setopt_array($curl, array(
-            CURLOPT_URL => self::$cemantix,
+            CURLOPT_URL => self::$cemantix.$action,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => "",
             CURLOPT_MAXREDIRS => 10,
@@ -21,11 +21,12 @@ class Cemantix {
             CURLOPT_POSTFIELDS => "word=$word"
         ));
         $response = curl_exec($curl);
-        error_log($response);
+        if ($action != 'nearby') // too verbose
+            error_log($response);
         $ret=new stdClass;
         if (curl_errno($curl) > 0) {
             error_log("curl_error:".curl_error($curl));
-            $ret->error=curl_error($curl);
+            $ret->error="($word) ".curl_error($curl);
         }
         else
             $ret = json_decode($response);
@@ -65,7 +66,7 @@ class Cemantix {
     }
 
     private static function init() {
-        $ret = self::postWord();
+        $ret = self::postWord('score');
         $num=$ret->num;
         echo "num:$num\n";
         self::loadCache($num);
@@ -144,7 +145,6 @@ class Cemantix {
             }
         }
         usort(self::$s_cache, ['Cemantix', 'sorter']);
-        $total=count(self::$s_cache);
         foreach (self::$s_cache as $i => $t) {
             if ($i < self::$limit) {
                 self::print_row($t,$i, $word == $t['word']);
@@ -154,14 +154,45 @@ class Cemantix {
         }
     }
 
+    private static function nearby() {
+        error_log("nearby()");
+        if (self::$s_cache[0]['percentile']==1000) {
+            $ret=self::postWord('nearby',self::$s_cache[0]['word']);
+            self::cls();
+            echo "nearby:\n";
+            for ($i = 0; $i < self::$limit + 2; $i++) {
+                // print_r($ret[$i]);
+                $t['idx']=null;
+                $t['word']=$ret[$i][0];
+                $t['score']=$ret[$i][2]/100;
+                $t['percentile']=$ret[$i][1];
+                self::print_row($t);
+            }
+        } else {
+            self::print("cheater !!");
+        }
+    }
+
+    public static function cmd($cmd) {
+        switch ($cmd) {
+            case 'nearby':
+                self::nearby();
+                break;
+            default:
+                error_log("unknown cmd <$cmd>");
+        }
+    }
+
     public static function start() {
         self::init();
         while(1){
             $word = readline('word : ');
-            if (isset(self::$cache[$word])) {
+            if (preg_match('#^\*([a-z]+).*#', $word, $cmd)) {
+                self::cmd($cmd[1]);
+            } else if (isset(self::$cache[$word])) {
                 self::print($word);
             } else {
-                $ret = self::postWord($word);
+                $ret = self::postWord('score', $word);
                 if (isset($ret->score)) {
                     self::$cache[$word]['word']=$word;
                     self::$cache[$word]['score']=$ret->score;
