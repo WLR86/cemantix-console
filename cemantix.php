@@ -110,12 +110,19 @@ class Cemantix {
     }
 
     private static function print_row($row, $s_idx=null, $bold=false) {
-        if ($bold) echo "\033[1m";
-        echo sprintf('%4s', $row['idx']) .self::mb_str_pad($row['word'], 20, ' ', STR_PAD_LEFT)  . 
-            sprintf(" : %6.2f%% / %4s", $row['score'] * 100, $row['percentile'] > 0 ? $row['percentile'] : '');
+        $style='0';
+        $color='0';
+        if ($bold) $style='1';
+        if ($row['percentile'] > 990) $color='31';
+        else if ($row['percentile'] > 900) $color='33';
+        else if (!empty($row['percentile'])) $color='93';
+        // echo "\033[1m";
+        echo "\e[$style;${color}m";
+        echo sprintf("\e[$style;${color}m*\e[0m\e[${style}m %4s", $row['idx']) .self::mb_str_pad($row['word'], 20, ' ', STR_PAD_LEFT)  . 
+            sprintf(" : %6.2f%% / \e[$style;${color}m%4s\e[0m\e[${style}m", $row['score'] * 100, $row['percentile'] > 0 ? $row['percentile'] : '');
         if (!is_null($s_idx))
             printf("%20s/%-3s", $s_idx+1, count(self::$s_cache));
-        echo "\033[0m\n";
+        echo "\e[0m\n";
     }
 
     private static function print($word=null) {
