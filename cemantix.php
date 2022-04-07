@@ -30,7 +30,7 @@ class Cemantix {
         else
             $ret = json_decode($response);
         curl_close($curl);
-        return json_decode($response);
+        return $ret;
     }
 
     private static function cls() {
