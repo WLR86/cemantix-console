@@ -6,6 +6,7 @@ class Cemantix {
     static $cache=[];
     static $s_cache=[];
     static $limit=20;
+    static $solvers=null;
 
     private static function postWord($action, $word=null) {
         $curl = curl_init();
@@ -30,6 +31,8 @@ class Cemantix {
         }
         else
             $ret = json_decode($response);
+        if (isset($ret->solvers))
+            self::$solvers = $ret->solvers;
         curl_close($curl);
         return $ret;
     }
@@ -118,7 +121,7 @@ class Cemantix {
         return $result;
     }
 
-    private static function print_row($row, $s_idx=null, $bold=false) {
+    private static function print_row($row, $s_idx=null, $bold=false, $solvers=null) {
         $style='0';
         $color='0';
         if ($bold) $style='1';
@@ -131,6 +134,8 @@ class Cemantix {
             sprintf(" : %6.2f%% / \e[$style;${color}m%4s\e[0m\e[${style}m", $row['score'] * 100, $row['percentile'] > 0 ? $row['percentile'] : '');
         if (!is_null($s_idx))
             printf("%20s/%-3s", $s_idx+1, count(self::$s_cache));
+        else if (!is_null($solvers)) 
+            printf(" solvers : %s", $solvers);
         echo "\e[0m\n";
     }
 
@@ -138,7 +143,7 @@ class Cemantix {
         self::cls();
         if ($word!=null) {
             if (isset(self::$cache[$word])) {
-                self::print_row(self::$cache[$word]);
+                self::print_row(self::$cache[$word], null, false, self::$solvers);
                 echo "\n";
             } else {
                 echo "$word\n\n";
