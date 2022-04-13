@@ -140,6 +140,7 @@ class Cemantix {
     }
 
     private static function print($word=null) {
+        self::getScreenSize();
         self::cls();
         if ($word!=null) {
             if (isset(self::$cache[$word])) {
@@ -188,7 +189,17 @@ class Cemantix {
         }
     }
 
+    public static function getScreenSize() { 
+        preg_match_all("/rows.([0-9]+);.columns.([0-9]+);/", strtolower(exec('stty -a |grep columns')), $output);
+        if(sizeof($output) == 3) {
+            error_log(print_r($output, true));
+            self::$limit = $output[1][0] - 4;
+            error_log(self::$limit);
+        }
+    }
+
     public static function start() {
+        self::getScreenSize();
         self::init();
         while(1){
             $word = readline('word : ');
