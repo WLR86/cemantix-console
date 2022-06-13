@@ -202,12 +202,13 @@ class Cemantix {
         self::getScreenSize();
         self::init();
         while(1){
-            $word = readline('word : ');
+            $word = readline('Mot : ');
             if (preg_match('#^\*([a-z]+).*#', $word, $cmd)) {
                 self::cmd($cmd[1]);
             } else if (isset(self::$cache[$word])) {
                 self::print($word);
             } else {
+				// let's try ou word
                 $ret = self::postWord('score', $word);
                 if (isset($ret->score)) {
                     self::$cache[$word]['word']=$word;
