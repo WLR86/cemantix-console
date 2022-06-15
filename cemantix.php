@@ -133,7 +133,7 @@ class Cemantix {
         echo sprintf("\e[$style;${color}m*\e[0m\e[${style}m %4s", $row['idx']) .self::mb_str_pad($row['word'], 20, ' ', STR_PAD_LEFT)  . 
             sprintf(" : %6.2f%% / \e[$style;${color}m%4s\e[0m\e[${style}m", $row['score'] * 100, $row['percentile'] > 0 ? $row['percentile'] : '');
         if (!is_null($s_idx))
-            printf("%20s/%-3s", $s_idx+1, count(self::$s_cache));
+            printf("\e[$style;${color}m%20s\e[0m\e[${style}m%4s/%-3s",str_repeat('#',$row['percentile']*0.02), $s_idx+1, count(self::$s_cache));
         else if (!is_null($solvers)) 
             printf(" solvers : %s", $solvers);
         echo "\e[0m\n";
