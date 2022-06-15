@@ -77,9 +77,9 @@ class Cemantix {
     }
 
     /**
-     * 
+     *
      * str_pad handling multibyte encoding
-     * 
+     *
      * https://stackoverflow.com/a/14773638
      */
     private static function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_RIGHT, $encoding = 'UTF-8') {
@@ -130,11 +130,11 @@ class Cemantix {
         else if (!empty($row['percentile'])) $color='93';
         // echo "\033[1m";
         echo "\e[$style;${color}m";
-        echo sprintf("\e[$style;${color}m*\e[0m\e[${style}m %4s", $row['idx']) .self::mb_str_pad($row['word'], 20, ' ', STR_PAD_LEFT)  . 
+        echo sprintf("\e[$style;${color}m*\e[0m\e[${style}m %4s", $row['idx']) .self::mb_str_pad($row['word'], 20, ' ', STR_PAD_LEFT)  .
             sprintf(" : %6.2f%% / \e[$style;${color}m%4s\e[0m\e[${style}m", $row['score'] * 100, $row['percentile'] > 0 ? $row['percentile'] : '');
         if (!is_null($s_idx))
             printf("\e[$style;${color}m%20s\e[0m\e[${style}m%4s/%-3s",str_repeat('#',$row['percentile']*0.02), $s_idx+1, count(self::$s_cache));
-        else if (!is_null($solvers)) 
+        else if (!is_null($solvers))
             printf(" solvers : %s", $solvers);
         echo "\e[0m\n";
     }
@@ -189,7 +189,7 @@ class Cemantix {
         }
     }
 
-    public static function getScreenSize() { 
+    public static function getScreenSize() {
         preg_match_all("/rows.([0-9]+);.columns.([0-9]+);/", strtolower(exec('stty -a |grep columns')), $output);
         if(sizeof($output) == 3) {
             error_log(print_r($output, true));
