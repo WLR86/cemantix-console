@@ -1,25 +1,30 @@
 <?php
+/*
+ *🥳😱🔥🥵😎🥶🧊
+ *
+ * */
+
 
 class Cemantix {
-    static $cemantix='https://cemantix.herokuapp.com/';
-    static $cache_path="/tmp/";
-    static $cache=[];
-    static $s_cache=[];
-    static $limit=20;
-    static $solvers=null;
+    static $cemantix   = 'https://cemantix.herokuapp.com/';
+    static $cache_path = "/tmp/";
+    static $cache      = [];
+    static $s_cache    = [];
+    static $limit      = 20;
+    static $solvers    = null;
 
     private static function postWord($action, $word=null) {
         $curl = curl_init();
         curl_setopt_array($curl, array(
-            CURLOPT_URL => self::$cemantix.$action,
+            CURLOPT_URL            => self::$cemantix.$action,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 1,
+            CURLOPT_ENCODING       => "",
+            CURLOPT_MAXREDIRS      => 10,
+            CURLOPT_TIMEOUT        => 1,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_POSTFIELDS => "word=$word"
+            CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST  => "POST",
+            CURLOPT_POSTFIELDS     => "word=$word"
         ));
         $response = curl_exec($curl);
         if ($action != 'nearby') // too verbose
@@ -45,10 +50,10 @@ class Cemantix {
         if (($handle = fopen(self::$cache_path."cem$num.csv", "r")) !== FALSE) {
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                 $num = count($data);
-                self::$cache[$data[0]]['word'] = $data[0];
-                self::$cache[$data[0]]['score'] = $data[1];
+                self::$cache[$data[0]]['word']       = $data[0];
+                self::$cache[$data[0]]['score']      = $data[1];
                 self::$cache[$data[0]]['percentile'] = $data[2] ?? null;
-                self::$cache[$data[0]]['idx'] = count(self::$cache);
+                self::$cache[$data[0]]['idx']        = count(self::$cache);
             }
             self::$s_cache = self::$cache;
             usort(self::$s_cache, ['Cemantix', 'sorter']);
@@ -70,7 +75,7 @@ class Cemantix {
 
     private static function init() {
         $ret = self::postWord('score');
-        $num=$ret->num;
+        $num = $ret->num;
         echo "num:$num\n";
         self::loadCache($num);
         self::print();
@@ -94,17 +99,17 @@ class Cemantix {
 
         switch ($pad_type) {
             case STR_PAD_RIGHT:
-                $left_pad = 0;
+                $left_pad  = 0;
                 $right_pad = $num_pad_chars;
                 break;
 
             case STR_PAD_LEFT:
-                $left_pad = $num_pad_chars;
+                $left_pad  = $num_pad_chars;
                 $right_pad = 0;
                 break;
 
             case STR_PAD_BOTH:
-                $left_pad = floor($num_pad_chars / 2);
+                $left_pad  = floor($num_pad_chars / 2);
                 $right_pad = $num_pad_chars - $left_pad;
                 break;
         }
@@ -124,11 +129,17 @@ class Cemantix {
     private static function print_row($row, $s_idx=null, $bold=false, $solvers=null) {
         $style='0';
         $color='0';
+		if ($row['score'] == 1) 	$icon = "🥳";
+		if ($row['score'] <  999) 	$icon = "😱";
+		if ($row['score'] <  990) 	$icon = "🔥";
+		if ($row['score'] <  900)	$icon = "🥵";
+		if ($row['score'] <  1) 	$icon = "😎";
+		if ($row['score'] <  0) 	$icon = "🥶";
+		if ($row['score'] < -100) 	$icon = "🧊";
         if ($bold) $style='1';
         if ($row['percentile'] > 990) $color='31';
         else if ($row['percentile'] > 900) $color='33';
         else if (!empty($row['percentile'])) $color='93';
-        // echo "\033[1m";
 		echo "\e[$style;${color}m";
 		echo sprintf(
 			"\e[$style;${color}m*\e[0m\e[${style}m %4s",
@@ -136,8 +147,8 @@ class Cemantix {
 			20, ' ', STR_PAD_LEFT)
 			.
 			sprintf(
-				" : %6.2f%% | \e[$style;${color}m%4s\e[0m\e[${style}m",
-				$row['score'] * 100,
+				" : %6.2f°C $icon \e[$style;${color}m%4s\e[0m\e[${style}m",
+				$row['score'] * 1E2,
 				$row['percentile'] > 0 ? $row['percentile'] : ''
 			);
         if (!is_null($s_idx))
@@ -179,11 +190,10 @@ class Cemantix {
             self::cls();
             echo "nearby:\n";
             for ($i = 0; $i < self::$limit + 2; $i++) {
-                // print_r($ret[$i]);
-                $t['idx']=null;
-                $t['word']=$ret[$i][0];
-                $t['score']=$ret[$i][2]/100;
-                $t['percentile']=$ret[$i][1];
+                $t['idx']        = null;
+                $t['word']       = $ret[$i][0];
+                $t['score']      = $ret[$i][2]/100;
+                $t['percentile'] = $ret[$i][1];
                 self::print_row($t);
             }
         } else {
