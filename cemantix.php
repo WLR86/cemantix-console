@@ -129,13 +129,14 @@ class Cemantix {
     private static function print_row($row, $s_idx=null, $bold=false, $solvers=null) {
         $style='0';
         $color='0';
-		if ($row['score'] == 1) 	$icon = "🥳";
-		if ($row['score'] <  999) 	$icon = "😱";
-		if ($row['score'] <  990) 	$icon = "🔥";
-		if ($row['score'] <  900)	$icon = "🥵";
-		if ($row['score'] <  1) 	$icon = "😎";
-		if ($row['score'] <  0) 	$icon = "🥶";
-		if ($row['score'] < -100) 	$icon = "🧊";
+		$temperature = $row['percentile']  ;
+		if ($temperature == 1000) 	$icon = "🥳";
+		if ($temperature <  1000) 	$icon = "😱";
+		if ($temperature <  999 ) 	$icon = "🔥";
+		if ($temperature <  990 )	$icon = "🥵";
+		if ($temperature <  900) 	$icon = "😎";
+		if ($temperature <  1  ) 	$icon = "🥶";
+		if ($temperature <  -100) 	$icon = "🧊";
         if ($bold) $style='1';
         if ($row['percentile'] > 990) $color='31';
         else if ($row['percentile'] > 900) $color='33';
