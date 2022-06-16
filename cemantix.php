@@ -234,15 +234,15 @@ class Cemantix {
 				// let's try ou word
                 $ret = self::postWord('score', $word);
                 if (isset($ret->score)) {
-                    self::$cache[$word]['word']=$word;
-                    self::$cache[$word]['score']=$ret->score;
-                    self::$cache[$word]['percentile']=$ret->percentile ?? 0;
-                    self::$cache[$word]['idx'] = count(self::$cache);
-                    self::$s_cache[]=self::$cache[$word];
+                    self::$cache[$word]['word']       = $word;
+                    self::$cache[$word]['score']      = $ret->score;
+                    self::$cache[$word]['percentile'] = $ret->percentile ?? 0;
+                    self::$cache[$word]['idx']        = count(self::$cache);
+                    self::$s_cache[]                  = self::$cache[$word];
                     self::print($word);
                     self::writeCacheLine($ret->num,[$word,$ret->score,($ret->percentile ?? 0)]);
                 } else {
-                    self::print($ret->error);
+                   // self::print($ret->error);
                 }
             }
         }
