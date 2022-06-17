@@ -1,8 +1,4 @@
 <?php
-/*
- *🥳😱🔥🥵😎🥶🧊
- *
- * */
 
 error_reporting(-1);
 
@@ -160,7 +156,7 @@ class Cemantix {
 				20,' ', STR_PAD_RIGHT), $s_idx+1, count(self::$s_cache)
 			);
         else if (!is_null($solvers))
-            printf(" solvers : %s", $solvers);
+            printf(" solvers : %s", (int) $solvers);
         echo "\e[0m\n";
     }
 
