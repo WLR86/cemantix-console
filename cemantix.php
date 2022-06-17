@@ -4,6 +4,7 @@
  *
  * */
 
+error_reporting(-1);
 
 class Cemantix {
     static $cemantix   = 'https://cemantix.herokuapp.com/';
@@ -76,7 +77,7 @@ class Cemantix {
     private static function init() {
         $ret = self::postWord('score');
         $num = $ret->num;
-        echo "num:$num\n";
+        //echo "num:$num\n";
         self::loadCache($num);
         self::print();
     }
@@ -242,7 +243,7 @@ class Cemantix {
                     self::print($word);
                     self::writeCacheLine($ret->num,[$word,$ret->score,($ret->percentile ?? 0)]);
                 } else {
-                   // self::print($ret->error);
+				   self::print($ret->error);
                 }
             }
         }
