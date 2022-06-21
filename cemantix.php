@@ -7,7 +7,7 @@ class Cemantix {
     static $cache_path = "/tmp/";
     static $cache      = [];
     static $s_cache    = [];
-    static $limit      = 10;
+    static $limit      = 20;
     static $solvers    = null;
 
     private static function postWord($action, $word=null) {
