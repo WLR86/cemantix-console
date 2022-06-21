@@ -7,7 +7,7 @@ class Cemantix {
     static $cache_path = "/tmp/";
     static $cache      = [];
     static $s_cache    = [];
-    static $limit      = 20;
+    static $limit      = 10;
     static $solvers    = null;
 
     private static function postWord($action, $word=null) {
@@ -168,7 +168,7 @@ class Cemantix {
                 self::print_row(self::$cache[$word], null, false, self::$solvers);
                 echo "\n";
             } else {
-                echo "$word\n\n";
+                echo strip_tags("$word\n\n");
             }
         }
         usort(self::$s_cache, ['Cemantix', 'sorter']);
@@ -223,12 +223,14 @@ class Cemantix {
         self::init();
         while(1){
             $word = readline('Mot : ');
+			$word = trim($word, ' ');
+			readline_add_history($word);
             if (preg_match('#^\*([a-z]+).*#', $word, $cmd)) {
                 self::cmd($cmd[1]);
             } else if (isset(self::$cache[$word])) {
                 self::print($word);
             } else {
-				// let's try ou word
+				// let's try our word
                 $ret = self::postWord('score', $word);
                 if (isset($ret->score)) {
                     self::$cache[$word]['word']       = $word;
@@ -237,7 +239,10 @@ class Cemantix {
                     self::$cache[$word]['idx']        = count(self::$cache);
                     self::$s_cache[]                  = self::$cache[$word];
                     self::print($word);
-                    self::writeCacheLine($ret->num,[$word,$ret->score,($ret->percentile ?? 0)]);
+					self::writeCacheLine(
+						$ret->num,
+						[$word,$ret->score,($ret->percentile ?? 0)]
+					);
                 } else {
 				   self::print($ret->error);
                 }
