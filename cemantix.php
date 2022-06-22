@@ -10,16 +10,22 @@ class Cemantix {
 	static $limit      = 20;
 	static $solvers    = null;
 
-	private static function getNum() {
-		$curl = curl_init();
+	private static function cfgCurl($curl) {
 		curl_setopt_array($curl, array(
-			CURLOPT_URL            => self::$cemantix.'stats',
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_ENCODING       => "",
 			CURLOPT_MAXREDIRS      => 10,
 			CURLOPT_TIMEOUT        => 1,
 			CURLOPT_FOLLOWLOCATION => true,
 			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+		));
+
+	}
+	private static function getNum() {
+		$curl = curl_init();
+		self::cfgCurl($curl);
+		curl_setopt_array($curl, array(
+			CURLOPT_URL            => self::$cemantix.'stats',
 			CURLOPT_CUSTOMREQUEST  => "GET",
 		));
 		$response = curl_exec($curl);
@@ -36,14 +42,9 @@ class Cemantix {
 
 	private static function postWord($action, $word=null) {
 		$curl = curl_init();
+		self::cfgCurl($curl);
 		curl_setopt_array($curl, array(
 			CURLOPT_URL            => self::$cemantix.$action,
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_ENCODING       => "",
-			CURLOPT_MAXREDIRS      => 10,
-			CURLOPT_TIMEOUT        => 1,
-			CURLOPT_FOLLOWLOCATION => true,
-			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
 			CURLOPT_CUSTOMREQUEST  => "POST",
 			CURLOPT_POSTFIELDS     => "word=$word"
 		));
