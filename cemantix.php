@@ -237,7 +237,7 @@ class Cemantix {
 		preg_match_all("/rows.([0-9]+);.columns.([0-9]+);/", strtolower(exec('stty -a |grep columns')), $output);
 		if(sizeof($output) == 3) {
 			// error_log(print_r($output, true));
-			self::$limit = $output[1][0] - 4;
+			self::$limit = $output[1][0] - 5;
 			//error_log(self::$limit);
 		}
 	}
@@ -246,8 +246,8 @@ class Cemantix {
 		self::getScreenSize();
 		self::init();
 		while(1){
-			$word = readline('Mot : ');
-			$word = trim($word, ' ');
+			echo "\n";
+			$word = trim(readline('> '), ' ');
 			readline_add_history($word);
 			if (preg_match('#^\*([a-z]+).*#', $word, $cmd)) {
 				self::cmd($cmd[1]);
