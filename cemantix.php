@@ -267,14 +267,10 @@ class Cemantix {
 			self::history();
 			break;
 		case 'reset':
-			self::clean();
-			break;
 		case 'restart':
 			self::clean();
 			break;
 		case 'exit':
-			self::stop();
-			break;
 		case 'quit':
 			self::stop();
 			break;
