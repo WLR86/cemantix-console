@@ -51,8 +51,8 @@ class Cemantix {
 			CURLOPT_POSTFIELDS     => "word=$word"
 		));
 		$response = curl_exec($curl);
-		if ($action != 'nearby') // too verbose
-			error_log($response);
+		// if ($action != 'nearby') // too verbose
+			//error_log($response);
 		$ret=new stdClass;
 		if (curl_errno($curl) > 0) {
 			error_log("curl_error:".curl_error($curl));
@@ -60,7 +60,6 @@ class Cemantix {
 		}
 		else
 			$ret = json_decode($response);
-		var_dump($ret);
 		if (isset($ret->solvers))
 			self::$solvers = $ret->solvers;
 		curl_close($curl);
