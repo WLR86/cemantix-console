@@ -15,17 +15,20 @@ class Cemantix {
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_ENCODING       => "",
 			CURLOPT_MAXREDIRS      => 10,
-			CURLOPT_TIMEOUT        => 1,
+			CURLOPT_TIMEOUT        => 3,
 			CURLOPT_FOLLOWLOCATION => true,
 			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+			CURLOPT_COOKIESESSION  => true,
+			CURLOPT_COOKIEJAR      => "/tmp/cemantix",
+			CURLOPT_COOKIEFILE     => "/tmp/"
 		));
 
 	}
-	private static function getNum() {
+	private static function get($item) {
 		$curl = curl_init();
 		self::cfgCurl($curl);
 		curl_setopt_array($curl, array(
-			CURLOPT_URL            => self::$cemantix.'stats',
+			CURLOPT_URL            => self::$cemantix.$item,
 			CURLOPT_CUSTOMREQUEST  => "GET",
 		));
 		$response = curl_exec($curl);
@@ -37,9 +40,8 @@ class Cemantix {
 		else
 			$ret = json_decode($response);
 		curl_close($curl);
-		return $ret->num;
+		return $ret ;
 	}
-
 	private static function postWord($action, $word=null) {
 		$curl = curl_init();
 		self::cfgCurl($curl);
@@ -97,7 +99,7 @@ class Cemantix {
 	}
 
 	private static function init() {
-		$num = self::getNum();
+		$num = self::get('stats')->num;
 		self::loadCache($num);
 		self::print();
 	}
@@ -205,12 +207,33 @@ class Cemantix {
 		}
 	}
 
+	private static function history() {
+		$ret = self::get('history');
+		self::cls();
+		echo "History:\n";
+		for ($i = 0; $i < self::$limit + 2; $i++) {
+			$N = $ret[$i][0];
+			$S = $ret[$i][1];
+			$W = $ret[$i][2];
+			$found = shell_exec(
+				"grep 1,1000 ".self::$cache_path.
+				"cem".$N.".csv -q 2>/dev/null".
+				" && echo -n '✅' || echo -n '❌'"
+			);
+			$color=($found=="✅")?"32":"31";
+			echo sprintf(
+				"\e[0;".$color."m".$N."\t".$S."\t".
+				self::mb_str_pad($W, 20, ' ', STR_PAD_LEFT).
+				"\t".$found."\e[0m\n"
+			) ;
+		}
+	}
+
 	private static function nearby() {
-		error_log("nearby()");
 		if (self::$s_cache[0]['percentile']==1000) {
 			$ret=self::postWord('nearby',self::$s_cache[0]['word']);
 			self::cls();
-			echo "nearby:\n";
+			echo "Nearby:\n";
 			for ($i = 0; $i < self::$limit + 2; $i++) {
 				$t['idx']        = null;
 				$t['word']       = $ret[$i][0];
@@ -219,7 +242,7 @@ class Cemantix {
 				self::print_row($t);
 			}
 		} else {
-			self::print("cheater !!");
+			self::print("Cheater :)");
 		}
 	}
 
@@ -228,8 +251,11 @@ class Cemantix {
 		case 'nearby':
 			self::nearby();
 			break;
+		case 'history':
+			self::history();
+			break;
 		default:
-			error_log("unknown cmd <$cmd>");
+			error_log("Unknown cmd <$cmd>");
 		}
 	}
 
@@ -249,7 +275,7 @@ class Cemantix {
 			echo "\n";
 			$word = trim(readline('> '), ' ');
 			readline_add_history($word);
-			if (preg_match('#^\*([a-z]+).*#', $word, $cmd)) {
+			if (preg_match('#^\/([a-z]+).*#', $word, $cmd)) {
 				self::cmd($cmd[1]);
 			} else if (isset(self::$cache[$word])) {
 				self::print($word);
