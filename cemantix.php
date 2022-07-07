@@ -35,7 +35,7 @@ class Cemantix {
 		$ret=new stdClass;
 		if (curl_errno($curl) > 0) {
 			error_log("curl_error:".curl_error($curl));
-			$ret->error="($word) ".curl_error($curl);
+			$ret->error=curl_error($curl);
 		}
 		else
 			$ret = json_decode($response);
@@ -220,12 +220,13 @@ class Cemantix {
 				"cem".$N.".csv -n 2>/dev/null".
 				" | cut -d: -f1"
 			);
-			$found=($line>0)?"✅":"❌" ;
-			$color=($line>0)?"97":"90" ;
+			$found = ($line>0 )?"✅":"❌" ;
+			$color = ($line>0 )?"97":"90" ;
+			$line  = ($line==0)?"  ":$line ;
 			echo sprintf(
 				"\e[0;${color}m*\t%4u\t%7u\t".
 				self::mb_str_pad($W, 20, ' ', STR_PAD_LEFT).
-				"\t%5u ".$found."\t\e[0m\n",$N,$S,$line
+				"\t%5s ".$found."\t\e[0m\n",$N,$S,$line
 			) ;
 		}
 	}
