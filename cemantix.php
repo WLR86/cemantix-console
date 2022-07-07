@@ -215,16 +215,17 @@ class Cemantix {
 			$N = $ret[$i][0];
 			$S = $ret[$i][1];
 			$W = $ret[$i][2];
-			$found = shell_exec(
+			$line = 0 + shell_exec(
 				"grep 1,1000 ".self::$cache_path.
-				"cem".$N.".csv -q 2>/dev/null".
-				" && echo -n '✅' || echo -n '❌'"
+				"cem".$N.".csv -n 2>/dev/null".
+				" | cut -d: -f1"
 			);
-			$color=($found=="✅")?"32":"31";
+			$found=($line>0)?"✅":"❌" ;
+			$color=($line>0)?"97":"90" ;
 			echo sprintf(
-				"\e[0;".$color."m".$N."\t".$S."\t".
+				"\e[0;${color}m*\t%4u\t%7u\t".
 				self::mb_str_pad($W, 20, ' ', STR_PAD_LEFT).
-				"\t".$found."\e[0m\n"
+				"\t%5u ".$found."\t\e[0m\n",$N,$S,$line
 			) ;
 		}
 	}
@@ -246,6 +247,16 @@ class Cemantix {
 		}
 	}
 
+	private static function stop(){
+		exit ;
+	}
+	private static function clean(){
+		$num = self::get('stats')->num ;
+		unlink(self::$cache_path."cem".$num.".csv")	;
+		self::$cache   = [];
+		self::$s_cache = [];
+		self::start();
+	}
 	public static function cmd($cmd) {
 		switch ($cmd) {
 		case 'nearby':
@@ -253,6 +264,18 @@ class Cemantix {
 			break;
 		case 'history':
 			self::history();
+			break;
+		case 'reset':
+			self::clean();
+			break;
+		case 'restart':
+			self::clean();
+			break;
+		case 'exit':
+			self::stop();
+			break;
+		case 'quit':
+			self::stop();
 			break;
 		default:
 			error_log("Unknown cmd <$cmd>");
