@@ -18,9 +18,6 @@ class Cemantix {
 			CURLOPT_TIMEOUT        => 3,
 			CURLOPT_FOLLOWLOCATION => true,
 			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
-			CURLOPT_COOKIESESSION  => true,
-			CURLOPT_COOKIEJAR      => "/tmp/cemantix",
-			CURLOPT_COOKIEFILE     => "/tmp/"
 		));
 
 	}
