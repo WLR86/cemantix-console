@@ -254,21 +254,21 @@ class Cemantix {
 /help		You are here
 
 /history	Prints a list of previous words.
-		Depending on the number of visible lines
-		in your terminal, the number of displayed
-		results may vary.
+		Depending on your terminal's size, the
+		number of displayed results may vary.
 
 /nearby		Prints a list of the highest ranked words
-		for the current day. You obviously need to
-		find the word for this to work. Like history,
-		the number of displayed results may vary.
+		for the current day, in descending order of
+		relevance.  You obviously need to find the word
+		for this to work.  Depending on your terminal's
+		size, the number of displayed results may vary.
 
 /restart	Resets the current game, so you can start
 		from scratch.
 
 /reset		Alias for /restart
 
-/quit		Self explanatory.
+/quit		Self explanatory
 
 (Press Enter to return to the game)
 		";
