@@ -15,3 +15,6 @@ Play Cémantix in your shell !
 ## To-Do
 - [X] History (previous words and their status "found"/"not found")
 - [X] New commands (/history, /exit, /quit, /reset, /restart)
+- [X] Command completion
+- [X] Inline help (/help)
+

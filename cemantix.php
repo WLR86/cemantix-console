@@ -94,6 +94,11 @@ class Cemantix {
 		fclose($handle);
 	}
 
+	private static function completeCmd($str){
+		$array = ['/help','/quit','/exit','restart','/nearby','/history'];
+		return $array;
+	}
+
 	private static function init() {
 		$num = self::get('stats')->num;
 		self::loadCache($num);
@@ -243,6 +248,31 @@ class Cemantix {
 			self::print("Cheater :)");
 		}
 	}
+	private static function help(){
+		self::cls();
+		echo "
+/help		You are here
+
+/history	Prints a list of previous words.
+		Depending on the number of visible lines
+		in your terminal, the number of displayed
+		results may vary.
+
+/nearby		Prints a list of the highest ranked words
+		for the current day. You obviously need to
+		find the word for this to work. Like history,
+		the number of displayed results may vary.
+
+/restart	Resets the current game, so you can start
+		from scratch.
+
+/reset		Alias for /restart
+
+/quit		Self explanatory.
+
+(Press Enter to return to the game)
+		";
+	}
 
 	private static function stop(){
 		exit ;
@@ -270,6 +300,11 @@ class Cemantix {
 		case 'quit':
 			self::stop();
 			break;
+		case 'help':
+		case 'h':
+		case '?':
+			self::help();
+			break;
 		default:
 			error_log("Unknown cmd <$cmd>");
 		}
@@ -287,6 +322,7 @@ class Cemantix {
 	public static function start() {
 		self::getScreenSize();
 		self::init();
+		readline_completion_function(['self','completeCmd']);
 		while(1){
 			echo "\n";
 			$word = trim(readline('> '), ' ');
