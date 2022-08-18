@@ -95,7 +95,10 @@ class Cemantix {
 	}
 
 	private static function completeCmd($str){
-		$array = ['/help','/quit','/exit','restart','/nearby','/history'];
+		$array = [
+			'/help','/quit','/exit',
+			'/restart','/nearby','/history'
+		];
 		return $array;
 	}
 
