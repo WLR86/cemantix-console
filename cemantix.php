@@ -9,7 +9,11 @@ class Cemantix {
 	static $s_cache    = [];
 	static $limit      = 20;
 	static $solvers    = null;
+	public static $startDate  = "";
 
+	private static function returnStartDate(){
+		return self::$startDate ;
+	}
 	private static function cfgCurl($curl) {
 		curl_setopt_array($curl, array(
 			CURLOPT_RETURNTRANSFER => true,
@@ -101,6 +105,7 @@ class Cemantix {
 	}
 
 	private static function init() {
+		self::$startDate = date('Ymd');
 		$num = self::get('stats')->num;
 		self::loadCache($num);
 		self::print();
@@ -335,6 +340,8 @@ class Cemantix {
 			} else {
 				// let's try our word
 				$ret = self::postWord('score', $word);
+				// Check currentDate
+				if ( date('Ymd') > self::returnStartDate() ) self::init();
 				if (isset($ret->score)) {
 					self::$cache[$word]['word']       = $word;
 					self::$cache[$word]['score']      = $ret->score;
