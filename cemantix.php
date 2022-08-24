@@ -69,13 +69,15 @@ class Cemantix {
 	}
 
 	private static function cls() {
-		echo chr(27).chr(91).'H'.chr(27).chr(91).'J';
+		echo chr(27).chr(91).'H'.
+			 chr(27).chr(91).'J';
 	}
 
-	private static function loadCache($num) {
-		if (($handle = fopen(self::$cache_path."cem$num.csv", "r")) !== FALSE) {
+	private static function loadCache($value) {
+		if (($handle = fopen(self::$cache_path."cem".$value.".csv", "r")) !== FALSE) {
+			self::$cache   = [];
+			self::$s_cache = [];
 			while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-				$num = count($data);
 				self::$cache[$data[0]]['word']       = $data[0];
 				self::$cache[$data[0]]['score']      = $data[1];
 				self::$cache[$data[0]]['percentile'] = $data[2] ?? null;
@@ -93,8 +95,8 @@ class Cemantix {
 		return $b['score'] > $a['score'];
 	}
 
-	private static function writeCacheLine($num,$row) {
-		$handle = fopen(self::$cache_path."cem$num.csv", "a");
+	private static function writeCacheLine($row) {
+		$handle = fopen(self::$cache_path."cem".self::$num.".csv", "a");
 		fputcsv($handle, $row);
 		fclose($handle);
 	}
@@ -107,13 +109,16 @@ class Cemantix {
 		return $array;
 	}
 
+	private static function loadFile($value){
+		self::$num = $value ;
+		if ($value=='today') $value = self::get('stats')->num ;
+		self::loadCache($value);
+		self::print();
+	}
 	private static function init() {
 		self::$startDate = date('Ymd');
-		self::$cache     = [];
-		self::$s_cache   = [];
-		$num = self::get('stats')->num;
-		self::$num = $num ;
-		self::loadCache($num);
+		self::$num = self::get('stats')->num ;
+		self::loadCache(self::$num);
 		self::print();
 	}
 
@@ -290,6 +295,8 @@ class Cemantix {
 		echo " / " ;
 		echo self::returnStartDate();
 		echo " / " ;
+		echo self::$startDate ;
+		echo " / " ;
 		echo self::$num ;
 	}
 	private static function stop(){
@@ -297,12 +304,13 @@ class Cemantix {
 	}
 	private static function clean(){
 		$num = self::get('stats')->num ;
+		self::$num = $num ;
 		unlink(self::$cache_path."cem".$num.".csv")	;
 		self::$cache   = [];
 		self::$s_cache = [];
 		self::start();
 	}
-	public static function cmd($cmd) {
+	public static function cmd($cmd,$params=null) {
 		switch ($cmd) {
 		case 'nearby':
 			self::nearby();
@@ -313,6 +321,9 @@ class Cemantix {
 		case 'reset':
 		case 'restart':
 			self::clean();
+			break;
+		case 'load':
+			self::loadFile($params);
 			break;
 		case 'exit':
 		case 'quit':
@@ -325,6 +336,9 @@ class Cemantix {
 			break;
 		case 'debug':
 			self::debug();
+			break;
+		case 'exec':
+			eval($params.";");
 			break;
 		default:
 			error_log("Unknown cmd <$cmd>");
@@ -349,14 +363,17 @@ class Cemantix {
 			$word = trim(readline('> '), ' ');
 			readline_add_history($word);
 			if (preg_match('#^\/([a-z]+).*#', $word, $cmd)) {
-				self::cmd($cmd[1]);
+				$params = str_replace('/'.$cmd[1].' ','',$cmd[0]);
+				self::cmd($cmd[1],$params);
 			} else if (isset(self::$cache[$word])) {
 				self::print($word);
 			} else {
 				// let's try our word
 				$ret = self::postWord('score', $word);
 				// Check currentDate
-				if ( date('Ymd') > self::returnStartDate() ) self::init();
+				if ( date('Ymd') > self::returnStartDate() ) {
+					self::clean();
+				}
 				if (isset($ret->score)) {
 					self::$cache[$word]['word']       = $word;
 					self::$cache[$word]['score']      = $ret->score;
@@ -365,7 +382,6 @@ class Cemantix {
 					self::$s_cache[]                  = self::$cache[$word];
 					self::print($word);
 					self::writeCacheLine(
-						$ret->num,
 						[$word,$ret->score,($ret->percentile ?? 0)]
 					);
 				} else {
