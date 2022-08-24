@@ -3,13 +3,16 @@
 error_reporting(0);
 
 class Cemantix {
-	static $cemantix   = 'https://cemantix.herokuapp.com/';
-	static $cache_path = "/tmp/";
-	static $cache      = [];
-	static $s_cache    = [];
-	static $limit      = 20;
-	static $solvers    = null;
-	public static $startDate  = "";
+
+	// vars
+	static $cemantix   = 'https://cemantix.herokuapp.com/' ;
+	static $cache_path = "/tmp/" ;
+	static $cache      = [] ;
+	static $s_cache    = [] ;
+	static $limit      = 20 ;
+	static $solvers    = null ;
+	static $startDate  = "" ;
+	static $num        = 0 ;
 
 	private static function returnStartDate(){
 		return self::$startDate ;
@@ -106,7 +109,10 @@ class Cemantix {
 
 	private static function init() {
 		self::$startDate = date('Ymd');
+		self::$cache     = [];
+		self::$s_cache   = [];
 		$num = self::get('stats')->num;
+		self::$num = $num ;
 		self::loadCache($num);
 		self::print();
 	}
@@ -279,7 +285,13 @@ class Cemantix {
 (Press Enter to return to the game)
 		";
 	}
-
+	private static function debug(){
+		echo date('Ymd') ;
+		echo " / " ;
+		echo self::returnStartDate();
+		echo " / " ;
+		echo self::$num ;
+	}
 	private static function stop(){
 		exit ;
 	}
@@ -310,6 +322,9 @@ class Cemantix {
 		case 'h':
 		case '?':
 			self::help();
+			break;
+		case 'debug':
+			self::debug();
 			break;
 		default:
 			error_log("Unknown cmd <$cmd>");
