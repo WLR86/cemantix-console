@@ -77,9 +77,9 @@ class Cemantix {
 	}
 
 	private static function loadCache($value) {
-		if (($handle = fopen(self::$cache_path."cem".$value.".csv", "r")) !== FALSE) {
+		$filename = self::$cache_path."cem".$value.".csv" ;
+		if (($handle = fopen($filename, "r")) !== FALSE) {
 			self::$cache   = [];
-			self::$s_cache = [];
 			while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
 				self::$cache[$data[0]]['word']       = $data[0];
 				self::$cache[$data[0]]['score']      = $data[1];
@@ -89,6 +89,8 @@ class Cemantix {
 			self::$s_cache = self::$cache;
 			usort(self::$s_cache, ['Cemantix', 'sorter']);
 			fclose($handle);
+		} else {
+			error_log("File $filename not found") ;
 		}
 	}
 
@@ -109,8 +111,8 @@ class Cemantix {
 	}
 
 	private static function loadFile($value){
-		self::$num = $value ;
 		if ($value=='today') $value = self::get('stats')->num ;
+		self::$num = $value ;
 		self::loadCache($value);
 		self::print();
 	}
