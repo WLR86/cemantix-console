@@ -4,7 +4,6 @@ error_reporting(0);
 
 class Cemantix {
 
-	// vars
 	static $cemantix   = 'https://cemantix.herokuapp.com/' ;
 	static $cache_path = "/tmp/" ;
 	static $cache      = [] ;
@@ -13,10 +12,12 @@ class Cemantix {
 	static $solvers    = null ;
 	static $startDate  = "" ;
 	static $num        = 0 ;
+	static $commands   = ['/help','/quit','/exit','/restart','/nearby','/history'];
 
 	private static function returnStartDate(){
 		return self::$startDate ;
 	}
+
 	private static function cfgCurl($curl) {
 		curl_setopt_array($curl, array(
 			CURLOPT_RETURNTRANSFER => true,
@@ -28,6 +29,7 @@ class Cemantix {
 		));
 
 	}
+
 	private static function get($item) {
 		$curl = curl_init();
 		self::cfgCurl($curl);
@@ -46,6 +48,7 @@ class Cemantix {
 		curl_close($curl);
 		return $ret ;
 	}
+
 	private static function postWord($action, $word=null) {
 		$curl = curl_init();
 		self::cfgCurl($curl);
@@ -102,11 +105,7 @@ class Cemantix {
 	}
 
 	private static function completeCmd($str){
-		$array = [
-			'/help','/quit','/exit',
-			'/restart','/nearby','/history'
-		];
-		return $array;
+		return self::$commands ;
 	}
 
 	private static function loadFile($value){
@@ -115,6 +114,7 @@ class Cemantix {
 		self::loadCache($value);
 		self::print();
 	}
+
 	private static function init() {
 		self::$startDate = date('Ymd');
 		self::$num = self::get('stats')->num ;
@@ -157,11 +157,15 @@ class Cemantix {
 
 		$result = '';
 		for ($i = 0; $i < $left_pad; ++$i) {
-			$result .= mb_substr($pad_string, $i % $pad_string_length, 1, $encoding);
+			$result .= mb_substr(
+				$pad_string, $i % $pad_string_length, 1, $encoding
+			);
 		}
 		$result .= $input;
 		for ($i = 0; $i < $right_pad; ++$i) {
-			$result .= mb_substr($pad_string, $i % $pad_string_length, 1, $encoding);
+			$result .= mb_substr(
+				$pad_string, $i % $pad_string_length, 1, $encoding
+			);
 		}
 
 		return $result;
@@ -209,7 +213,12 @@ class Cemantix {
 		self::cls();
 		if ($word!=null) {
 			if (isset(self::$cache[$word])) {
-				self::print_row(self::$cache[$word], null, false, self::$solvers);
+				self::print_row(
+					self::$cache[$word],
+					null,
+					false,
+					self::$solvers
+				);
 				echo "\n";
 			} else {
 				echo strip_tags("$word\n\n");
@@ -265,6 +274,7 @@ class Cemantix {
 			self::print("Cheater :)");
 		}
 	}
+
 	private static function help(){
 		self::cls();
 		echo "
@@ -290,6 +300,7 @@ class Cemantix {
 (Press Enter to return to the game)
 		";
 	}
+
 	private static function debug(){
 		echo date('Ymd') ;
 		echo " / " ;
@@ -299,9 +310,11 @@ class Cemantix {
 		echo " / " ;
 		echo self::$num ;
 	}
+
 	private static function stop(){
 		exit ;
 	}
+
 	private static function clean(){
 		$num = self::get('stats')->num ;
 		self::$num = $num ;
@@ -310,7 +323,8 @@ class Cemantix {
 		self::$s_cache = [];
 		self::start();
 	}
-	public static function cmd($cmd,$params=null) {
+
+	private static function cmd($cmd,$params=null) {
 		switch ($cmd) {
 		case 'nearby':
 			self::nearby();
@@ -345,12 +359,14 @@ class Cemantix {
 		}
 	}
 
-	public static function getScreenSize() {
-		preg_match_all("/rows.([0-9]+);.columns.([0-9]+);/", strtolower(exec('stty -a |grep columns')), $output);
+	private static function getScreenSize() {
+		preg_match_all(
+			"/rows.([0-9]+);.columns.([0-9]+);/",
+			strtolower(exec('stty -a |grep columns')),
+			$output
+		);
 		if(sizeof($output) == 3) {
-			// error_log(print_r($output, true));
 			self::$limit = $output[1][0] - 5;
-			//error_log(self::$limit);
 		}
 	}
 
@@ -368,9 +384,8 @@ class Cemantix {
 			} else if (isset(self::$cache[$word])) {
 				self::print($word);
 			} else {
-				// let's try our word
 				$ret = self::postWord('score', $word);
-				// Check currentDate
+				// Check current date
 				if ( date('Ymd') > self::returnStartDate() ) {
 					self::clean();
 				}
@@ -390,7 +405,6 @@ class Cemantix {
 			}
 		}
 	}
-
 }
 
 Cemantix::start();
