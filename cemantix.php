@@ -1,11 +1,11 @@
 <?php
 
-error_reporting(0);
+error_reporting(1);
 
 class Cemantix {
 
 	static $cemantix   = 'https://cemantix.herokuapp.com/' ;
-	static $cache_path = "/tmp/" ;
+	static $cache_path = '~/.cemantix/';
 	static $cache      = [] ;
 	static $s_cache    = [] ;
 	static $limit      = 20 ;
@@ -77,6 +77,13 @@ class Cemantix {
 	}
 
 	private static function loadCache($value) {
+		self::$cache_path = str_replace(
+			'~',getenv('HOME'),
+			self::$cache_path
+		);
+		if (!is_dir(self::$cache_path)) {
+			mkdir(self::$cache_path, 0755, true);
+		}
 		$filename = self::$cache_path."cem".$value.".csv" ;
 		if (($handle = fopen($filename, "r")) !== FALSE) {
 			self::$cache   = [];
