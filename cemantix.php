@@ -76,7 +76,7 @@ class Cemantix {
 			 chr(27).chr(91).'J';
 	}
 
-	private static function loadCache($value) {
+	private static function loadCache($num) {
 		self::$cache_path = str_replace(
 			'~',getenv('HOME'),
 			self::$cache_path
@@ -84,7 +84,7 @@ class Cemantix {
 		if (!is_dir(self::$cache_path)) {
 			mkdir(self::$cache_path, 0755, true);
 		}
-		$filename = self::$cache_path."cem".$value.".csv" ;
+		$filename = self::$cache_path."cem".$num.".csv" ;
 		if (($handle = fopen($filename, "r")) !== FALSE) {
 			self::$cache   = [];
 			while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
@@ -117,10 +117,11 @@ class Cemantix {
 		return self::$commands ;
 	}
 
-	private static function loadFile($value){
-		if ($value=='today') $value = self::get('stats')->num ;
-		self::$num = $value ;
-		self::loadCache($value);
+	private static function loadFile($num){
+		if ( $num == 'today' )
+			$num = self::get('stats')->num ;
+		self::$num = $num ;
+		self::loadCache($num);
 		self::print();
 	}
 
