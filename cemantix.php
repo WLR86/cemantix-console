@@ -300,7 +300,7 @@ class Cemantix {
 		size, the number of displayed results may vary.
 
 /restart	Resets the current game, so you can start
-		from scratch.
+		from scratch. (A backup is created, though)
 
 /reset		Alias for /restart
 
@@ -327,7 +327,10 @@ class Cemantix {
 	private static function clean(){
 		$num = self::get('stats')->num ;
 		self::$num = $num ;
-		unlink(self::$cache_path."cem".$num.".csv")	;
+		$file = self::$cache_path."cem".$num.".csv" ;
+		rename(
+			$file, str_replace('csv','bak.csv',$file)
+		)	;
 		self::$cache   = [];
 		self::$s_cache = [];
 		self::start();

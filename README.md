@@ -9,7 +9,7 @@ Play Cémantix in your shell !
 *(use prefix "/" to indicate you want to enter a command)*
 - exit / quit : Self explanatory
 - help : Self explanatory
-- reset / restart : Erase data file and restart the game from start
+- reset / restart : Erase data file and restart the game from start. A backup is created, just in case.
 - nearby : Once you found today's word, you can have a look at all the nearby words
 - history : Displays a list of the latest words
 
