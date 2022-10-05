@@ -11,6 +11,7 @@ class Cemantix {
 	static $limit      = 20 ;
 	static $solvers    = null ;
 	static $startDate  = "" ;
+	static $lastResp   = "" ;
 	static $num        = 0 ;
 	static $commands   = ['/help','/quit','/exit','/restart','/nearby','/history'];
 
@@ -65,6 +66,7 @@ class Cemantix {
 		}
 		else
 			$ret = json_decode($response);
+			self::$lastResp = $ret ;
 		if (isset($ret->solvers))
 			self::$solvers = $ret->solvers;
 		curl_close($curl);
@@ -312,13 +314,7 @@ class Cemantix {
 	}
 
 	private static function debug(){
-		echo date('Ymd') ;
-		echo " / " ;
-		echo self::returnStartDate();
-		echo " / " ;
-		echo self::$startDate ;
-		echo " / " ;
-		echo self::$num ;
+		echo self::$lastResp;
 	}
 
 	private static function stop(){
