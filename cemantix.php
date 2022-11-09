@@ -4,7 +4,7 @@ error_reporting(0);
 
 class Cemantix {
 
-	static $cemantix   = 'https://cemantix.herokuapp.com/' ;
+	static $cemantix   = 'https://cemantix.certitudes.org/' ;
 	static $cache_path = '~/.cemantix/';
 	static $cache      = [] ;
 	static $s_cache    = [] ;
