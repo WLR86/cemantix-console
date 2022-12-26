@@ -386,6 +386,7 @@ class Cemantix {
 		while(1){
 			echo "\n";
 			$word = trim(readline('> '), ' ');
+			$word = preg_replace("/[^a-zA-Z\-\/\p{L}\s]`u/", "", $word);
 			readline_add_history($word);
 			if (preg_match('#^\/([a-z]+).*#', $word, $cmd)) {
 				$params = str_replace('/'.$cmd[1].' ','',$cmd[0]);
