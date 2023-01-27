@@ -13,7 +13,7 @@ class Cemantix {
 	static $startDate  = "" ;
 	static $lastResp   = "" ;
 	static $num        = 0 ;
-	static $commands   = ['/help','/quit','/exit','/restart','/nearby','/history'];
+	static $commands   = ['/help','/quit','/exit','/restart','/nearby','/history','load'];
 
 	private static function returnStartDate(){
 		return self::$startDate ;
@@ -295,7 +295,9 @@ class Cemantix {
 /history	Prints a list of previous words.
 		Depending on your terminal's size, the
 		number of displayed results may vary.
-
+/load Num	Load the game corresponding to the given
+		number. To get back to current game, you can
+		give its number or use «today» as a value
 /nearby		Prints a list of the highest ranked words
 		for the current day, in descending order of
 		relevance.  You obviously need to find the word
