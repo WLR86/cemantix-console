@@ -4,7 +4,7 @@ error_reporting(0);
 
 class Cemantix {
 
-	static $cemantix   = 'https://cemantix.certitudes.org/' ;
+	static $cemantix   = 'https://cemantix.certitudes.org' ;
 	static $cache_path = '~/.cemantix/';
 	static $cache      = [] ;
 	static $s_cache    = [] ;
@@ -35,7 +35,7 @@ class Cemantix {
 		$curl = curl_init();
 		self::cfgCurl($curl);
 		curl_setopt_array($curl, array(
-			CURLOPT_URL            => self::$cemantix.$item,
+			CURLOPT_URL            => self::$cemantix."/".$item,
 			CURLOPT_CUSTOMREQUEST  => "GET",
 		));
 		$response = curl_exec($curl);
@@ -54,8 +54,11 @@ class Cemantix {
 		$curl = curl_init();
 		self::cfgCurl($curl);
 		curl_setopt_array($curl, array(
-			CURLOPT_URL            => self::$cemantix.$action,
+			CURLOPT_URL            => self::$cemantix."/".$action,
 			CURLOPT_CUSTOMREQUEST  => "POST",
+			CURLOPT_HTTPHEADER     => [
+				'Origin: '.self::$cemantix
+			],
 			CURLOPT_POSTFIELDS     => "word=$word"
 		));
 		$response = curl_exec($curl);
