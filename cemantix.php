@@ -9,6 +9,7 @@ class Cemantix {
 	static $cache      = [] ;
 	static $s_cache    = [] ;
 	static $limit      = 20 ;
+	static $padding    = 20 ;
 	static $solvers    = null ;
 	static $startDate  = "" ;
 	static $lastResp   = "" ;
@@ -205,7 +206,7 @@ class Cemantix {
 		echo sprintf(
 			"\e[$style;${color}m*\e[0m\e[${style}m %4s",
 			$row['idx']) .self::mb_str_pad($row['word'],
-			20, ' ', STR_PAD_LEFT)
+			self::$padding, ' ', STR_PAD_LEFT)
 			.
 			sprintf(
 				" : %6.2f°C $icon \e[$style;${color}m%4s\e[0m\e[${style}m",
@@ -216,7 +217,7 @@ class Cemantix {
 			printf(
 				" \e[$style;${color}m%20s\e[0m\e[${style}m%4s/%-3s ",
 				self::mb_str_pad(str_repeat('◼',$row['percentile']*2E-2),
-				20,' ', STR_PAD_RIGHT), $s_idx+1, count(self::$s_cache)
+				self::$padding,' ', STR_PAD_RIGHT), $s_idx+1, count(self::$s_cache)
 			);
 		else if (!is_null($solvers))
 			printf(" solvers : %s", (int) $solvers);
