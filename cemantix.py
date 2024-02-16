@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 import os
+import sys
 from pathlib import Path
 import datetime
 import cmd
 import csv
 import requests
+from termcolor import colored
 
 cemantix_URL = "https://cemantix.certitudes.org"
 headers = {'Origin': cemantix_URL, 'Referer': cemantix_URL}
@@ -13,9 +15,9 @@ cachePath = os.path.expanduser('~/.cemantix/')
 
 
 class Cemantix(cmd.Cmd):
-    prompt = "Cémantix > "
-    intro = "Welcome to Cémantix"
-    limit = 20
+    prompt  = "Cémantix > "
+    intro   = "Welcome to Cémantix"
+    limit   = 20
     lastRow = {}
 
     def preloop(self):
@@ -26,7 +28,25 @@ class Cemantix(cmd.Cmd):
         self.postWord("score", line)
 
     def do_print(self, line):
-        self.print_row(self, self.lastRow, bold=True)
+        row = self.lastRow
+        row['word'] = line
+        self.print_row(self, row, bold=True)
+
+    def do_printScrenSize(self, line):
+        """ Print the screen size """
+        print(self.getScreenSize()[0])
+
+    # define a function that prints N lines of the cache depending on the number of lines the display permits
+    def do_printCache(self, line):
+        """ Print the cache """
+        self.cls()
+        print("Cache:")
+        # for each row in the cache, print the row items
+        i = 1
+        for row in self.cache:
+            if i < self.limit:
+                i += 1
+                self.print(row)
 
     def do_greet(self, line):
         print("hello")
@@ -57,25 +77,38 @@ class Cemantix(cmd.Cmd):
         self.print_row(self, self.postWord("score", word), bold=True)
 
     def print_row(self, row, s_idx=0, bold=False, solvers=False):
-        print()
-        style = 0
-        color = 0
+        row = self.lastRow
+        style = ''
+        color = 'white'
         try:
-            temperature = row['percentile']
+            temperature = round(row['score'] * 1E2, 3)
         except KeyError:
             temperature = 0
-        if temperature == 1000 : icon = "🥳"
+        if temperature == 1000:  icon = "🥳"
         if temperature < 1000:   icon = "😱"
         if temperature < 999:    icon = "🔥"
         if temperature < 990:    icon = "🥵"
         if temperature < 900:    icon = "😎"
         if temperature < 1:      icon = "🥶"
         if temperature < -100:   icon = "🧊"
-        if bold: style='1'
-        if row['percentile'] > 990: color='31'
-        elif row['percentile'] > 900: color='33'
-        elif row['percentile']=="": color='93'
-        print("\033[{};{}m{} {}\033[0m".format(style, color, icon, row['word']))
+        if bold:
+            style = ['bold']
+        else:
+            style = ['bold']
+        if row['percentile'] > 990:   color = 'red'
+        elif row['percentile'] > 900: color = 'yellow'
+        elif row['percentile'] > 800: color = 'green'
+        elif str(row['percentile']) == "": color = 'white'
+
+        # round the score to 2 decimal after the decimal point
+        row['score'] = round(row['score']*1E2, 2)
+        #  row['score'] = round(row['score'] * 1E2, 2)
+        # *    9           théorique : 100.00°C 🥳 1000 ◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼   1/9
+        # use color to represent the temperature
+        bargraph = "◼" * int(row['percentile'] / 50) + "◻" * (20 - int(row['percentile'] / 50))
+        cnt = f"1/{len(self.cache)}"
+        print(colored("* {:>20} : {:>8}°C {:>3} {:>3} {:<20} {:>6}".format(row['word'], temperature, icon, row['percentile'],bargraph,cnt), color, attrs=style))
+
 
     def do_history(self, line):
         """ Print the history of words and their scores """
@@ -101,6 +134,11 @@ class Cemantix(cmd.Cmd):
         return int(rows), int(columns)
 
     def postWord(self, action, word):
+        """
+        Returns the score of the word, or an error message
+        if the word is not found, or a status_code if the request
+        fails
+        """
         action = "score"
         # POST line as word variable via POST to cemantix_URL
         data = {"word": word}
@@ -141,11 +179,11 @@ class Cemantix(cmd.Cmd):
                             'word': word,
                             'score': float(data[1]),
                             'percentile': int(data[2]) if len(data) > 2 else None,
-                            'idx': idx
+                            'idx': idx + 1
                             }
                 # How sort entries by percentile and score
             self.s_cache = sorted(self.cache.values(), key=lambda x: (x['percentile'], x['score']), reverse=True)
-            #  print(self.s_cache)
+            print(self.s_cache)
 
         except FileNotFoundError:
             print(f"File {self.filename} not found", file=sys.stderr)
@@ -158,7 +196,7 @@ class Cemantix(cmd.Cmd):
 
     def writeCacheLine(self, row):
         """ Write a line to the cache file """
-        with open(self.filename, 'a') as f:
+        with open(self.filename, 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(row)
 
@@ -180,16 +218,27 @@ class Cemantix(cmd.Cmd):
 
     def default(self, word):
         """ Send word via POST request to cemantix_URL and return its score """
+        self.limit = self.getScreenSize()[0] - 2
         self.cls()
         self.num = self.get('stats')['num']
         self.loadCache()
         response = self.postWord("score", word)
+        #  print(response)
 
+        # test if response contains score and percentile it's ok else it's an error
+        try:
+            sc = response['score']
+            result = "Ok"
+        except KeyError:
+            result = "Error"
         try:
             if int(response['percentile']) == 1000:
                 print("Gagné !")
+
+            rcode = "Ok"
         except KeyError:
             response['percentile'] = 0
+            rcode = "Error"
 
         try:
             # round the score to 2 decimal places
@@ -197,14 +246,18 @@ class Cemantix(cmd.Cmd):
         except KeyError:
             response['score'] = 0
 
-        try:
-            # strip tags from the error message
-            response['error'] = response['error'].replace('<i>', '').replace('</i>', '')
-            print(response['error'])
-        except KeyError:
-            self.lastRow = response
-            print(self.writeCacheLine([word, response['score'], response['percentile']]))
-            print(str(response['score'] * 100) + " " + word.rjust(30) + " : " + str(response['percentile']))
+        self.lastRow = response
+        self.lastRow['word'] = word
+        if rcode == "Ok":
+            if word not in self.cache:
+                self.cache[word] = self.lastRow
+                self.cache[word]['idx'] = len(self.cache)
+                self.writeCacheLine([word, response['score'], response['percentile']])
+        s_idx = 1
+        self.print_row(self, self.lastRow, s_idx)
+
+        if result == "Error":
+            print(response['error'].replace('<i>', '').replace('</i>', ''))
 
 
 if __name__ == '__main__':
