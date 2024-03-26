@@ -19,6 +19,8 @@ class Cemantix(cmd.Cmd):
     intro   = "Welcome to Cémantix"
     limit   = 20
     lastRow = {}
+    cache   = {}
+    s_cache = []
 
     def preloop(self):
         self.cls()
@@ -32,21 +34,28 @@ class Cemantix(cmd.Cmd):
         row['word'] = line
         self.print_row(self, row, bold=True)
 
-    def do_printScrenSize(self, line):
+    def do_printScreenSize(self, line):
         """ Print the screen size """
         print(self.getScreenSize()[0])
 
     # define a function that prints N lines of the cache depending on the number of lines the display permits
     def do_printCache(self, line):
         """ Print the cache """
+        self.loadCache()
         self.cls()
         print("Cache:")
-        # for each row in the cache, print the row items
         i = 1
-        for row in self.cache:
-            if i < self.limit:
+
+        for line in self.s_cache:
+            try:
+                line['percentile'] = line['percentile'] if 'percentile' \
+                        in line else 0
+                line['idx'] = i
+                self.print_row(line, i)
                 i += 1
-                self.print(row)
+            except KeyError:
+                pass
+
 
     def do_greet(self, line):
         print("hello")
@@ -77,11 +86,17 @@ class Cemantix(cmd.Cmd):
         self.print_row(self, self.postWord("score", word), bold=True)
 
     def print_row(self, row, s_idx=0, bold=False, solvers=False):
-        row = self.lastRow
+        """ Print a row of the cache """
+        # test if row is a valid dictionary
+        if not isinstance(row, dict):
+            row = self.lastRow
+
         style = ''
         color = 'white'
+        icon  = "?"
         try:
             temperature = round(row['score'] * 1E2, 3)
+            score = row['score']
         except KeyError:
             temperature = 0
         if temperature == 1000:  icon = "🥳"
@@ -95,19 +110,41 @@ class Cemantix(cmd.Cmd):
             style = ['bold']
         else:
             style = ['bold']
+        try:
+            row['percentile'] = row['percentile'] if 'percentile' in row else 0
+        except KeyError:
+            row['percentile'] = 0
         if row['percentile'] > 990:   color = 'red'
         elif row['percentile'] > 900: color = 'yellow'
         elif row['percentile'] > 800: color = 'green'
         elif str(row['percentile']) == "": color = 'white'
 
         # round the score to 2 decimal after the decimal point
-        row['score'] = round(row['score']*1E2, 2)
+        try:
+            row['score'] = round(row['score']*1E2, 4)
+        except KeyError:
+            row['score'] = 0
+
+        try:
+            row['word'] = row['word']
+        except KeyError:
+            print(row)
+            row['word'] = "Error"
+
         #  row['score'] = round(row['score'] * 1E2, 2)
         # *    9           théorique : 100.00°C 🥳 1000 ◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼   1/9
         # use color to represent the temperature
         bargraph = "◼" * int(row['percentile'] / 50) + "◻" * (20 - int(row['percentile'] / 50))
-        cnt = f"1/{len(self.cache)}"
-        print(colored("* {:>20} : {:>8}°C {:>3} {:>3} {:<20} {:>6}".format(row['word'], temperature, icon, row['percentile'],bargraph,cnt), color, attrs=style))
+        try:
+            cnt = f"{row['idx']}/{len(self.cache)}"
+        except KeyError:
+            cnt = "0/0"
+        print(colored(
+            "* {:>20} : {:>8}°C {:>3} {:>5} {:<20} {:>6}".format(row['word'],
+            temperature, icon, row['percentile'], bargraph, cnt),
+            color, attrs=style
+            )
+        )
 
 
     def do_history(self, line):
@@ -171,7 +208,7 @@ class Cemantix(cmd.Cmd):
             os.makedirs(cachePath, mode=0o755, exist_ok=True)
         self.filename = f"{cachePath}cem{num}.csv"
         try:
-            with open(self.filename, "r") as handle:
+            with open(self.filename, "a+") as handle:
                 self.cache = {}
                 for idx, data in enumerate(csv.reader(handle)):
                     word = data[0]
@@ -183,7 +220,7 @@ class Cemantix(cmd.Cmd):
                             }
                 # How sort entries by percentile and score
             self.s_cache = sorted(self.cache.values(), key=lambda x: (x['percentile'], x['score']), reverse=True)
-            print(self.s_cache)
+            #  print(self.s_cache)
 
         except FileNotFoundError:
             print(f"File {self.filename} not found", file=sys.stderr)
@@ -196,7 +233,7 @@ class Cemantix(cmd.Cmd):
 
     def writeCacheLine(self, row):
         """ Write a line to the cache file """
-        with open(self.filename, 'a', newline='') as f:
+        with open(self.filename, 'a+', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(row)
 
@@ -242,7 +279,7 @@ class Cemantix(cmd.Cmd):
 
         try:
             # round the score to 2 decimal places
-            response['score'] = round(response['score'], 2)
+            response['score'] = round(response['score'], 4)
         except KeyError:
             response['score'] = 0
 
