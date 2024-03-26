@@ -56,7 +56,6 @@ class Cemantix(cmd.Cmd):
             except KeyError:
                 pass
 
-
     def do_greet(self, line):
         print("hello")
 
@@ -202,7 +201,7 @@ class Cemantix(cmd.Cmd):
             print("No cache file found")
             pass
 
-    def loadCache(self):
+    def old_loadCache(self):
         num = self.num
         if not Path(cachePath).is_dir():
             os.makedirs(cachePath, mode=0o755, exist_ok=True)
@@ -221,6 +220,32 @@ class Cemantix(cmd.Cmd):
                 # How sort entries by percentile and score
             self.s_cache = sorted(self.cache.values(), key=lambda x: (x['percentile'], x['score']), reverse=True)
             #  print(self.s_cache)
+
+        except FileNotFoundError:
+            print(f"File {self.filename} not found", file=sys.stderr)
+
+    def loadCache(self):
+        num = self.num
+        if not Path(cachePath).is_dir():
+            os.makedirs(cachePath, mode=0o755, exist_ok=True)
+        self.filename = f"{cachePath}cem{num}.csv"
+        try:
+            dataset = list()
+            with open(self.filename, 'a+') as file:
+                csv_reader = csv.reader(file)
+                for row in csv_reader:
+                    if not row:
+                        continue
+                    dataset.append({
+                            'word': row[0],
+                            'score': float(row[1]),
+                            'percentile': int(row[2])
+                        })
+            self.s_cache = sorted(
+                    dataset,
+                    key=lambda x: (x['score'], x['percentile']),
+                    reverse=True
+                    )
 
         except FileNotFoundError:
             print(f"File {self.filename} not found", file=sys.stderr)
