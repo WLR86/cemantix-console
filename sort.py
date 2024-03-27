@@ -19,8 +19,28 @@ def load_csv(filename):
     return dataset
 
 
+def display_csv(filename):
+    dataset = load_csv(filename)
+    # format the dataset to the output is neat
+    dataset = [f"{row['word']}, {row['score']}, {row['percentile']}" for row in dataset]
+    print("\n".join(dataset))
+
+
+def write_csv(filename, word, score, percentile):
+    with open(filename, 'a+', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([word, score, percentile])
+
+
+word = input("Enter a word: ")
+if (word == "Quit"):
+    exit()
+else:
+    write_csv(filename, word, 0, 0)
+
 s_cache = sorted(
         load_csv(filename),
         key=lambda x: (x['score'], x['percentile']),
         reverse=True)
 print(s_cache)
+display_csv(filename)
