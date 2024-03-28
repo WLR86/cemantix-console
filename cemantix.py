@@ -2,6 +2,7 @@
 
 import os
 import sys
+import re
 from pathlib import Path
 import datetime
 import cmd
@@ -20,6 +21,7 @@ class Cemantix(cmd.Cmd):
     limit = 20
     lastRow = {}
     cache = {}
+    cache_idx = []
     s_cache = []
 
     def preloop(self):
@@ -51,6 +53,14 @@ class Cemantix(cmd.Cmd):
         row['word'] = line
         self.print_row(self, row, bold=True)
 
+    def do_debug(self, line):
+        print("This is the unsorted cache:")
+        print(self.cache)
+        print("This is the unsorted cache index table:")
+        print(self.cache_idx)
+        print("This is the sorted cache:")
+        print(self.s_cache)
+
     def do_printScreenSize(self, line):
         """ Print the screen size """
         print(self.limit)
@@ -68,6 +78,9 @@ class Cemantix(cmd.Cmd):
                         in line else 0
                 line['idx'] = i
                 self.print_row(line, i)
+                # s_cache is the sorted cache, cache is the unsorted cache
+                # so look for the current line in the unsorted cache and return
+                # its index
                 i += 1
             except KeyError:
                 pass
@@ -154,16 +167,26 @@ class Cemantix(cmd.Cmd):
         #  bargraph = "◼" * int(row['percentile'] / 50) + "◻" * (20 - int(row['percentile'] / 50))
         bargraph = "◼" * int(row['percentile'] / 50) + " " * (20 - int(row['percentile'] / 50))
         try:
-            cnt = f"{row['idx']}/{len(self.cache)}"
+            cnt = f"{row['idx']}/{len(self.cache_idx)}"
         except KeyError:
             cnt = "0/0"
-        print(colored(
-            "* {:>20} : {:>8}°C {:>3} {:>5} {:<20} {:>6}".format(row['word'],
-            temperature, icon, row['percentile'], bargraph, cnt),
-            color, attrs=style
+        # if solvers exists this is the current word
+        if solvers:
+            print(colored(
+                "* {:>20} {:>8}°C{:>3}{:>5} Solvers: {:>6}".format(row['word'],
+                temperature, icon, row['percentile'], row['solvers']),
+                color, attrs=style
+                )
             )
-        )
-
+            print("\n")
+        else:
+            idx = self.cache_idx.index(row['word'])
+            print(colored(
+                "* {:>4} {:>20} {:>8}°C{:>3}{:>5} {:<20} {:>6}".format(idx, row['word'],
+                temperature, icon, row['percentile'], bargraph, cnt),
+                color, attrs=style
+                )
+            )
 
     def do_history(self, line):
         """ Print the history of words and their scores """
@@ -204,45 +227,6 @@ class Cemantix(cmd.Cmd):
         else:
             return out.status_code
 
-    def xloadCache(self):
-        """ Load the cache file into a dictionary """
-        self.filename = "cem" + str(self.num) + ".csv"
-        self.cache = {}
-        # if cachePath doesn't exist, create it
-        if not os.path.exists(cachePath):
-            os.makedirs(cachePath)
-        try:
-            with open(cachePath + self.filename, 'r') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    self.cache[row[0]] = row[1]
-        except FileNotFoundError:
-            print("No cache file found")
-            pass
-
-    def old_loadCache(self):
-        num = self.num
-        if not Path(cachePath).is_dir():
-            os.makedirs(cachePath, mode=0o755, exist_ok=True)
-        self.filename = f"{cachePath}cem{num}.csv"
-        try:
-            with open(self.filename, "a+") as handle:
-                self.cache = {}
-                for idx, data in enumerate(csv.reader(handle)):
-                    word = data[0]
-                    self.cache[word] = {
-                            'word': word,
-                            'score': float(data[1]),
-                            'percentile': int(data[2]) if len(data) > 2 else None,
-                            'idx': idx + 1
-                            }
-                # How sort entries by percentile and score
-            self.s_cache = sorted(self.cache.values(), key=lambda x: (x['percentile'], x['score']), reverse=True)
-            #  print(self.s_cache)
-
-        except FileNotFoundError:
-            print(f"File {self.filename} not found", file=sys.stderr)
-
     def loadCache(self):
         num = self.num
         if not Path(cachePath).is_dir():
@@ -251,6 +235,7 @@ class Cemantix(cmd.Cmd):
         #  print(self.filename)
         try:
             dataset = list()
+            self.cache_idx = list()
             with open(self.filename, 'r+') as file:
                 csv_reader = csv.reader(file)
                 for row in csv_reader:
@@ -261,6 +246,7 @@ class Cemantix(cmd.Cmd):
                             'score': float(row[1]),
                             'percentile': int(row[2])
                         })
+                    self.cache_idx.append(row[0])
             self.cache = dataset
             self.s_cache = sorted(
                     dataset,
@@ -270,18 +256,6 @@ class Cemantix(cmd.Cmd):
 
         except FileNotFoundError:
             print(f"File {self.filename} not found", file=sys.stderr)
-
-    def sorter(self, a, b):
-        """ Sort the cache by value """
-        if a['percentile'] != b['percentile']:
-            return b['percentile'] > a['percentile']
-        return b['score'] > a['score']
-
-    def old_writeCacheLine(self, row):
-        """ Write a line to the cache file """
-        with open(self.filename, 'a+', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(row)
 
     def writeCacheLine(self, row):
         """ Add a line to the cache file """
@@ -316,7 +290,9 @@ class Cemantix(cmd.Cmd):
         return list(commands | topics)
 
     def do_try(self, word):
-        """ Send word via POST request to cemantix_URL and return its score """
+        """
+        Send word via POST request to cemantix_URL and return its score
+        """
         self.limit = self.getScreenSize()[0] - 3
         self.cls()
         self.num = self.get('stats')['num']
@@ -363,16 +339,16 @@ class Cemantix(cmd.Cmd):
             #  print(row)
             #  print('Writing line to cache', self.filename)
             if error:
-                print(error)
+                print(re.sub('<[^<]+?>', '', error))
             else:
                 self.writeCacheLine(row)
 
         #  s_idx = 1
-        #  self.print_row(self, self.lastRow, s_idx)
+        self.print_row(self, self.lastRow, 0, response['solvers'])
         self.do_printCache(self)
 
         if result == "Error":
-            print(response['error'].replace('<i>', '').replace('</i>', ''))
+            print(re.sub('<[^<]+?>', '', response['error']))
 
 
 if __name__ == '__main__':
