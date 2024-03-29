@@ -42,57 +42,6 @@ class Cemantix(cmd.Cmd):
         line = "help cmd"
         return line
 
-    def do_say(self, arg):
-        print("You said", '"' + arg + '"')
-
-    def do_test(self, line):
-        print(self.cache)
-
-    def do_print(self, line):
-        row = self.lastRow
-        row['word'] = line
-        self.print_row(self, row, bold=True)
-
-    def do_debug(self, line):
-        print("This is the unsorted cache:")
-        print(self.cache)
-        print("This is the unsorted cache index table:")
-        print(self.cache_idx)
-        print("This is the sorted cache:")
-        print(self.s_cache)
-
-    def do_printScreenSize(self, line):
-        """ Print the screen size """
-        print(self.limit)
-
-    # define a function that prints N lines of the cache depending
-    # on the number of lines the display permits
-    def do_printCache(self, line):
-        """ Print the cache """
-        self.loadCache()
-        i = 1
-
-        for line in self.s_cache:
-            try:
-                line['percentile'] = line['percentile'] if 'percentile' \
-                        in line else 0
-                line['idx'] = i
-                self.print_row(line, i)
-                # s_cache is the sorted cache, cache is the unsorted cache
-                # so look for the current line in the unsorted cache and return
-                # its index
-                i += 1
-            except KeyError:
-                pass
-            if i >= self.limit:
-                break
-
-    def do_greet(self, line):
-        print("hello")
-
-    def do_quit(self, line):
-        return True
-
     def cls(self):
         out = os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -123,23 +72,30 @@ class Cemantix(cmd.Cmd):
 
         style = ''
         color = 'white'
-        icon  = "?"
+        icon = "?"
         try:
             temperature = round(row['score'] * 1E2, 3)
-            score = row['score']
         except KeyError:
             temperature = 0
-        if temperature == 1000:  icon = "🥳"
-        if temperature < 1000:   icon = "😱"
-        if temperature < 999:    icon = "🔥"
-        if temperature < 990:    icon = "🥵"
-        if temperature < 900:    icon = "😎"
-        if temperature < 1:      icon = "🥶"
-        if temperature < -100:   icon = "🧊"
+        percent = row['percentile']
+        if (percent == 1000):
+            icon = "🥳"
+        elif (percent > 998):
+            icon = "😱"
+        elif (percent > 990):
+            icon = "🔥"
+        elif (percent > 900):
+            icon = "🥵"
+        elif (percent > 1):
+            icon = "😎"
+        elif (percent > 0):
+            icon = "🥶"
+        else:
+            icon = "🧊"
         if bold:
             style = ['bold']
         else:
-            style = ['bold']
+            style = []
         try:
             row['percentile'] = row['percentile'] if 'percentile' in row else 0
         except KeyError:
@@ -161,9 +117,6 @@ class Cemantix(cmd.Cmd):
             print(row)
             row['word'] = "Error"
 
-        #  row['score'] = round(row['score'] * 1E2, 2)
-        # *    9           théorique : 100.00°C 🥳 1000 ◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼   1/9
-        # use color to represent the temperature
         #  bargraph = "◼" * int(row['percentile'] / 50) + "◻" * (20 - int(row['percentile'] / 50))
         bargraph = "◼" * int(row['percentile'] / 50) + " " * (20 - int(row['percentile'] / 50))
         try:
@@ -173,36 +126,29 @@ class Cemantix(cmd.Cmd):
         # if solvers exists this is the current word
         if solvers:
             print(colored(
-                "* {:>20} {:>8}°C{:>3}{:>5} Solvers: {:>6}".format(row['word'],
-                temperature, icon, row['percentile'], row['solvers']),
+                "* {:>4}{:>20} {:>6}°C{:>3}{:>5}  {:<20} {:>7}".format(' ', row['word'],
+                temperature, icon, row['percentile'], "Solvers:", row['solvers']),
                 color, attrs=style
                 )
             )
-            print("\n")
+            print("")
         else:
             idx = self.cache_idx.index(row['word'])
-            print(colored(
-                "* {:>4} {:>20} {:>8}°C{:>3}{:>5} {:<20} {:>6}".format(idx, row['word'],
-                temperature, icon, row['percentile'], bargraph, cnt),
-                color, attrs=style
-                )
+            print(
+                "* {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7}".format(idx, row['word'],
+                temperature, icon, row['percentile'], colored(bargraph, color, attrs=style), cnt)
             )
-
-    def do_history(self, line):
-        """ Print the history of words and their scores """
-        ret = self.get('history')
-        self.cls()
-        print("History:")
-        for i in range(0, self.limit + 2):
-            N = ret[i][0]
-            S = ret[i][1]
-            W = ret[i][2]
-            # run grep on the cache file to get entries from 1 to 1000
 
     def get(self, verb):
         """ Send a GET request to cemantix_URL and return the response"""
         r = requests.Session()
         response = r.get(cemantix_URL + "/" + verb, headers=headers)
+        return response.json()
+
+    def post(self, verb, data):
+        """ Send a POST request to cemantix_URL and return the response"""
+        r = requests.Session()
+        response = r.post(cemantix_URL + "/" + verb, headers=headers, data=data)
         return response.json()
 
     def getScreenSize(self):
@@ -266,6 +212,32 @@ class Cemantix(cmd.Cmd):
                 writer = csv.writer(f)
                 writer.writerow(row)
 
+    def completedefault(self, *args):
+        """ Default completion function """
+        commands = set(self.completenames(*args))
+        topics = set(a[5:] for a in self.get_names()
+            if a.startswith('help_' + args[0]))
+        return list(commands | topics)
+
+    def do_say(self, arg):
+        print("You said", '"' + arg + '"')
+
+    def do_test(self, line):
+        print(self.cache)
+
+    def do_print(self, line):
+        row = self.lastRow
+        row['word'] = line
+        self.print_row(self, row, bold=True)
+
+    def do_debug(self, line):
+        print("This is the unsorted cache:")
+        print(self.cache)
+        print("This is the unsorted cache index table:")
+        print(self.cache_idx)
+        print("This is the sorted cache:")
+        print(self.s_cache)
+
     def do_loadFile(self, num):
         """ Load the file into a dictionary """
         self.filename = "cem" + str(num) + ".csv"
@@ -282,12 +254,72 @@ class Cemantix(cmd.Cmd):
             print("No cache file found")
             pass
 
-    def completedefault(self, *args):
-        """ Default completion function """
-        commands = set(self.completenames(*args))
-        topics = set(a[5:] for a in self.get_names()
-            if a.startswith('help_' + args[0]))
-        return list(commands | topics)
+    def do_printScreenSize(self, line):
+        """ Print the screen size """
+        print(self.limit)
+
+    # define a function that prints N lines of the cache depending
+    # on the number of lines the display permits
+    def do_printCache(self, word):
+        """ Print the cache """
+        self.loadCache()
+        i = 1
+
+        for row in self.s_cache:
+            try:
+                row['percentile'] = row['percentile'] if 'percentile' \
+                        in row else 0
+                row['idx'] = i
+                if (row['word'] == word):
+                    self.print_row(row, i, solvers=False, bold=True)
+                else:
+                    self.print_row(row, i)
+                # s_cache is the sorted cache, cache is the unsorted cache
+                # so look for the current line in the unsorted cache and return
+                # its index
+                i += 1
+            except KeyError:
+                pass
+            if i >= self.limit:
+                break
+
+    def do_greet(self, line):
+        print("hello")
+
+    def do_quit(self, line):
+        return True
+
+    def do_nearby(self, line):
+        """
+        Get nearby words
+        """
+        if (self.s_cache[0]['percentile'] == 1000):
+            word = self.s_cache[0]['word']
+            ret = self.post("nearby", {'word': word})
+            i, t = 0, {}
+            self.cls()
+            for (word, percentile, score) in ret:
+                t['idx'] = i
+                t['word'] = word
+                t['percentile'] = percentile
+                t['score'] = round(score, 4)
+                i += 1
+                if (i < self.limit + 3):
+                    temperature = t['score']
+                    print("* {:3} {:20} {:6.2f}°C {:4} ".format(i, word, temperature, percentile))
+        else:
+            print('Cheater !')
+
+    def do_history(self, line):
+        """ Print the history of words and their scores """
+        ret = self.get('history')
+        self.cls()
+        print("History:")
+        for i in range(0, self.limit + 2):
+            N = ret[i][0]
+            S = ret[i][1]
+            W = ret[i][2]
+            # run grep on the cache file to get entries from 1 to 1000
 
     def do_try(self, word):
         """
@@ -345,7 +377,7 @@ class Cemantix(cmd.Cmd):
 
         #  s_idx = 1
         self.print_row(self, self.lastRow, 0, response['solvers'])
-        self.do_printCache(self)
+        self.do_printCache(word)
 
         if result == "Error":
             print(re.sub('<[^<]+?>', '', response['error']))
