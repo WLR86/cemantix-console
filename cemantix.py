@@ -44,6 +44,7 @@ class Cemantix(cmd.Cmd):
 
     def cls(self):
         out = os.system('cls' if os.name == 'nt' else 'clear')
+        return out
 
     def init(self):
         # get today's date in Ymd format
@@ -286,6 +287,9 @@ class Cemantix(cmd.Cmd):
     def do_greet(self, line):
         print("hello")
 
+    def do_cls(self, line):
+        return self.cls()
+
     def do_quit(self, line):
         return True
 
@@ -316,10 +320,22 @@ class Cemantix(cmd.Cmd):
         self.cls()
         print("History:")
         for i in range(0, self.limit + 2):
-            N = ret[i][0]
-            S = ret[i][1]
-            W = ret[i][2]
+            Num = ret[i][0]
+            Solvers = ret[i][1]
+            Word = ret[i][2]
             # run grep on the cache file to get entries from 1 to 1000
+            # search in given csv file for 1000
+            filename = cachePath + "cem" + str(Num) + ".csv"
+            try:
+                with open(filename, 'r') as f:
+                    reader = csv.reader(f)
+                    foundMark = "❌"
+                    for row in reader:
+                        if row[0] == Word:
+                            foundMark = "✅"
+                    print("* {:4} {:20} {:8} {:1}".format(Num, Word, Solvers, foundMark))
+            except FileNotFoundError:
+                pass
 
     def do_try(self, word):
         """
