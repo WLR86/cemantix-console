@@ -136,7 +136,7 @@ class Cemantix(cmd.Cmd):
         else:
             idx = self.cache_idx.index(row['word'])
             print(
-                "* {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7}".format(idx, row['word'],
+                "* {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7}".format(idx + 1, row['word'],
                 temperature, icon, row['percentile'], colored(bargraph, color, attrs=style), cnt)
             )
 
