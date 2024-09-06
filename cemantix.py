@@ -135,10 +135,9 @@ class Cemantix(cmd.Cmd):
             print("")
         else:
             idx = self.cache_idx.index(row['word'])
-            print(
-                "* {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7}".format(idx + 1, row['word'],
-                temperature, icon, row['percentile'], colored(bargraph, color, attrs=style), cnt)
-            )
+            thisline = "* {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7}".format(idx + 1, row['word'],
+                temperature, icon, row['percentile'], bargraph, cnt)
+            print(colored(thisline, color, attrs=style))
 
     def get(self, verb):
         """ Send a GET request to cemantix_URL and return the response"""
