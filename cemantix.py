@@ -329,10 +329,14 @@ class Cemantix(cmd.Cmd):
                 with open(filename, 'r') as f:
                     reader = csv.reader(f)
                     foundMark = "❌"
+                    idx = 0
+                    NTries = ""
                     for row in reader:
+                        idx = idx + 1;
                         if row[0] == Word:
                             foundMark = "✅"
-                    print("* {:4} {:20} {:8} {:1}".format(Num, Word, Solvers, foundMark))
+                            NTries = idx
+                    print("* {:4} {:4} {:20} {:8} {:1}".format(Num, NTries, Word, Solvers, foundMark))
             except FileNotFoundError:
                 pass
 
