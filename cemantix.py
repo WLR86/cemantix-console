@@ -201,7 +201,9 @@ class Cemantix(cmd.Cmd):
                     )
 
         except FileNotFoundError:
-            print(f"File {self.filename} not found", file=sys.stderr)
+            # actually no nothing
+            # print(f"File {self.filename} not found", file=sys.stderr)
+            pass
 
     def writeCacheLine(self, row):
         """ Add a line to the cache file """
@@ -218,6 +220,9 @@ class Cemantix(cmd.Cmd):
         topics = set(a[5:] for a in self.get_names()
             if a.startswith('help_' + args[0]))
         return list(commands | topics)
+
+    def do_init(self, line):
+        self.init()
 
     def do_say(self, arg):
         print("You said", '"' + arg + '"')
@@ -315,6 +320,7 @@ class Cemantix(cmd.Cmd):
 
     def do_history(self, line):
         """ Print the history of words and their scores """
+        self.limit = self.getScreenSize()[0] - 3
         ret = self.get('history')
         self.cls()
         print("History:")
@@ -344,6 +350,9 @@ class Cemantix(cmd.Cmd):
         """
         Send word via POST request to cemantix_URL and return its score
         """
+        # If the date is different from the one in the cache, we have to re-initialiaze the game
+        if self.startDate != datetime.date.today():
+            self.init()
         self.limit = self.getScreenSize()[0] - 3
         self.cls()
         self.num = self.get('stats')['num']
