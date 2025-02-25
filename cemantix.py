@@ -13,7 +13,7 @@ from termcolor import colored
 cemantix_URL = "https://cemantix.certitudes.org"
 headers = {'Origin': cemantix_URL, 'Referer': cemantix_URL}
 cachePath = os.path.expanduser('~/.cemantix/')
-
+origin = datetime.date(2022, 3, 3)
 
 class Cemantix(cmd.Cmd):
     prompt = "Cémantix > "
@@ -49,7 +49,10 @@ class Cemantix(cmd.Cmd):
     def init(self):
         # get today's date in Ymd format
         self.startDate = datetime.date.today()
-        self.num = self.get('stats')['num']
+        # no longer served
+        # self.num = self.get('stats')['n']
+        self.num  = (self.startDate - origin).days + 1
+
         #  self.loadCache(self)
         self.loadCache()
         #  self.print()
@@ -78,7 +81,10 @@ class Cemantix(cmd.Cmd):
             temperature = round(row['score'] * 1E2, 3)
         except KeyError:
             temperature = 0
-        percent = row['percentile']
+        try:
+            percent = row['percentile']
+        except KeyError:
+            percent = 0
         if (percent == 1000):
             icon = "🥳"
         elif (percent > 998):
@@ -128,27 +134,30 @@ class Cemantix(cmd.Cmd):
         if solvers:
             print(colored(
                 "* {:>4}{:>20} {:>6}°C{:>3}{:>5}  {:<20} {:>7}".format(' ', row['word'],
-                temperature, icon, row['percentile'], "Solvers:", row['solvers']),
+                temperature, icon, row['percentile'], "Solvers:", row['v']),
                 color, attrs=style
                 )
             )
             print("")
         else:
-            idx = self.cache_idx.index(row['word'])
-            thisline = "* {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7}".format(idx + 1, row['word'],
-                temperature, icon, row['percentile'], bargraph, cnt)
-            print(colored(thisline, color, attrs=style))
+            try:
+                idx = self.cache_idx.index(row['word'])
+                thisline = "* {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7}".format(idx + 1, row['word'],
+                    temperature, icon, row['percentile'], bargraph, cnt)
+                print(colored(thisline, color, attrs=style))
+            except ValueError:
+                pass
 
     def get(self, verb):
         """ Send a GET request to cemantix_URL and return the response"""
         r = requests.Session()
-        response = r.get(cemantix_URL + "/" + verb, headers=headers)
+        response = r.get(f'{cemantix_URL}/{verb}?n={self.num}', headers=headers)
         return response.json()
 
     def post(self, verb, data):
         """ Send a POST request to cemantix_URL and return the response"""
         r = requests.Session()
-        response = r.post(cemantix_URL + "/" + verb, headers=headers, data=data)
+        response = r.post(f'{cemantix_URL}/{verb}?n={self.num}', headers=headers, data=data)
         return response.json()
 
     def getScreenSize(self):
@@ -164,10 +173,9 @@ class Cemantix(cmd.Cmd):
         fails
         """
         action = "score"
-        # POST line as word variable via POST to cemantix_URL
         data = {"word": word}
         r = requests.Session()
-        out = r.post(cemantix_URL + "/" + action, headers=headers, data=data)
+        out = r.post(f"{cemantix_URL}/{action}?n={self.num}", headers=headers, data=data)
         if out.status_code == 200:
             return out.json()
         else:
@@ -355,25 +363,32 @@ class Cemantix(cmd.Cmd):
             self.init()
         self.limit = self.getScreenSize()[0] - 3
         self.cls()
-        self.num = self.get('stats')['num']
         self.loadCache()
         response = self.postWord("score", word)
+        try:
+            response['percentile'] = response['p']
+        except KeyError:
+            response['percentile'] = 0
+
+        try:
+            response['score'] = round(response['s'], 4)
+            result = "Ok"
+        except KeyError:
+            response['score'] = 0
+
         #  print(response)
         rcode = "Ok"
 
         try:
+            response['error'] = response['e']
             error = response['error']
+            rcode = "Error"
         except KeyError:
             error = None
 
-        try:
-            # round the score to 2 decimal places
-            response['score'] = round(response['score'], 4)
-        except KeyError:
-            response['score'] = 0
-
         self.lastRow = response
         self.lastRow['word'] = word
+        result = ""
         if rcode == "Ok":
             #  if word not in self.cache:
                 #  self.cache[word] = self.lastRow
@@ -382,11 +397,6 @@ class Cemantix(cmd.Cmd):
                 #  print(row)
                 #  print('Writing line to cache', self.filename)
                 #  self.writeCacheLine(row)
-            try:
-                sc = response['score']
-                result = "Ok"
-            except KeyError:
-                result = "Error"
             try:
                 if int(response['percentile']) == 1000:
                     print("Gagné !")
@@ -404,7 +414,7 @@ class Cemantix(cmd.Cmd):
                 self.writeCacheLine(row)
 
         #  s_idx = 1
-        self.print_row(self, self.lastRow, 0, response['solvers'])
+        self.print_row(self, self.lastRow, 0, response['score'])
         self.do_printCache(word)
 
         if result == "Error":
