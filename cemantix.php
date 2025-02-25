@@ -36,7 +36,7 @@ class Cemantix {
 		$curl = curl_init();
 		self::cfgCurl($curl);
 		curl_setopt_array($curl, array(
-			CURLOPT_URL            => self::$cemantix."/".$item,
+			CURLOPT_URL            => self::$cemantix."/".$item."?n=".self::$num,
 			CURLOPT_CUSTOMREQUEST  => "GET",
 		));
 		$response = curl_exec($curl);
@@ -55,7 +55,7 @@ class Cemantix {
 		$curl = curl_init();
 		self::cfgCurl($curl);
 		curl_setopt_array($curl, array(
-			CURLOPT_URL            => self::$cemantix."/".$action,
+			CURLOPT_URL            => self::$cemantix."/".$action."?n=".self::$num	,
 			CURLOPT_CUSTOMREQUEST  => "POST",
 			CURLOPT_HTTPHEADER     => [
 				'Origin: '.self::$cemantix
@@ -71,6 +71,13 @@ class Cemantix {
 		else
 			$ret = json_decode($response);
 			self::$lastResp = $ret ;
+
+		// variables have been renamed
+			$ret->score      = $ret->s ;
+			$ret->percentile = $ret->p ;
+			$ret->solvers    = $ret->v ;
+			$ret->error      = $ret->e ;
+
 		if (isset($ret->solvers))
 			self::$solvers = $ret->solvers;
 		curl_close($curl);
@@ -125,7 +132,7 @@ class Cemantix {
 
 	private static function loadFile($num){
 		if ( $num == 'today' )
-			$num = self::get('stats')->num ;
+			$num = self::getNum() ;
 		self::$num = $num ;
 		self::loadCache($num);
 		self::print();
@@ -133,11 +140,23 @@ class Cemantix {
 
 	private static function init() {
 		self::$startDate = date('Ymd');
-		self::$num = self::get('stats')->num ;
+		self::$num = self::getNum();
 		self::loadCache(self::$num);
 		self::print();
 	}
 
+	private static function getNum() {
+		$origin = new DateTime("2022-03-03");
+
+		// Obtenir la date du jour
+		$today = new DateTime();
+
+		// Calcul du numéro du jour
+		$interval = $origin->diff($today);
+		$num = $interval->days + 1; // +1 car le 03/03/2022 est le jour 1
+
+		return $num ;
+	}
 	/**
 	 *
 	 * str_pad handling multibyte encoding
