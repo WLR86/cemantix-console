@@ -3,6 +3,10 @@ My 2 cents on cemantix-console, largely based on [farfabet](https://github.com/f
 
 Play Cémantix in your shell !
 
+Now you can choose between php-cli or python3 version
+Both versions are not quite on par, python version offers basic functionnality while php-cli is a bit more advanced
+
+
 ![Screenshot](doc/screenshot.png)
 
 ## Supported commands
