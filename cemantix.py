@@ -51,15 +51,17 @@ class Cemantix(cmd.Cmd):
         self.startDate = datetime.date.today()
         # no longer served
         # self.num = self.get('stats')['n']
-        self.num  = (self.startDate - origin).days + 1
+        self.num = (self.startDate - origin).days + 1
 
         #  self.loadCache(self)
         self.loadCache()
+        self.limit = self.getScreenSize()[0] - 3
+        self.do_printCache("");
         #  self.print()
 
     def print(self, word):
         """ Print the word and its score """
-        self.getScreenSize()
+        self.limit = self.getScreenSize()[0] - 3
         self.cls()
         print(word)
         if word != "":
@@ -254,6 +256,7 @@ class Cemantix(cmd.Cmd):
     def do_loadFile(self, num):
         """ Load the file into a dictionary """
         self.filename = "cem" + str(num) + ".csv"
+        self.num = num
         # self.cache = {}
         # if cachePath doesn't exist, create it
         if not os.path.exists(cachePath):
@@ -262,7 +265,7 @@ class Cemantix(cmd.Cmd):
             with open(cachePath + self.filename, 'r') as f:
                 reader = csv.reader(f)
                 for row in reader:
-                    self.cache[row[0]] = row[1]
+                    self.cache.append(row);
         except FileNotFoundError:
             print("No cache file found")
             pass
