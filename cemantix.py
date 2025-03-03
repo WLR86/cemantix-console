@@ -372,31 +372,22 @@ class Cemantix(cmd.Cmd):
 
         try:
             response['score'] = round(response['s'], 4)
-            result = "Ok"
         except KeyError:
             response['score'] = 0
 
-        #  print(response)
         rcode = "Ok"
 
         try:
             response['error'] = response['e']
-            error = response['error']
             rcode = "Error"
+            print(re.sub('<[^<]+?>', '', response['error']))
+            print()
         except KeyError:
-            error = None
+            pass
 
         self.lastRow = response
         self.lastRow['word'] = word
-        result = ""
         if rcode == "Ok":
-            #  if word not in self.cache:
-                #  self.cache[word] = self.lastRow
-                #  self.cache[word]['idx'] = len(self.cache)
-                #  row = [word, response['score'], response['percentile']]
-                #  print(row)
-                #  print('Writing line to cache', self.filename)
-                #  self.writeCacheLine(row)
             try:
                 if int(response['percentile']) == 1000:
                     print("Gagné !")
@@ -406,19 +397,11 @@ class Cemantix(cmd.Cmd):
                 response['percentile'] = 0
                 rcode = "Error"
             row = [word, response['score'], response['percentile']]
-            #  print(row)
-            #  print('Writing line to cache', self.filename)
-            if error:
-                print(re.sub('<[^<]+?>', '', error))
-            else:
-                self.writeCacheLine(row)
+            self.writeCacheLine(row)
 
         #  s_idx = 1
         self.print_row(self, self.lastRow, 0, response['score'])
         self.do_printCache(word)
-
-        if result == "Error":
-            print(re.sub('<[^<]+?>', '', response['error']))
 
 
 if __name__ == '__main__':
