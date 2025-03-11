@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-import sys
+import signal
 import re
 from pathlib import Path
 import datetime
@@ -10,10 +10,23 @@ import csv
 import requests
 from termcolor import colored
 
-cemantix_URL = "https://cemantix.certitudes.org"
+cemantix_URL = "https://cemantle.certitudes.org"
 headers = {"Origin": cemantix_URL, "Referer": cemantix_URL}
 cachePath = os.path.expanduser("~/.cemantix/")
-origin = datetime.date(2022, 3, 3)
+origin = datetime.date(2022, 4, 5)
+
+
+def handle_sigchld(signum, frame):
+    while True:
+        try:
+            pid, _ = os.waitpid(-1, os.WNOHANG)
+            if pid == 0:
+                break
+        except ChildProcessError:
+            break
+
+
+signal.signal(signal.SIGCHLD, handle_sigchld)
 
 
 class Cemantix(cmd.Cmd):
@@ -214,7 +227,7 @@ class Cemantix(cmd.Cmd):
         num = self.num
         if not Path(cachePath).is_dir():
             os.makedirs(cachePath, mode=0o755, exist_ok=True)
-        self.filename = f"{cachePath}cem{num}.csv"
+        self.filename = f"{cachePath}cemantle{num}.csv"
         #  print(self.filename)
         try:
             dataset = list()
@@ -272,6 +285,7 @@ class Cemantix(cmd.Cmd):
         self.print_row(self, row, bold=True)
 
     def do_debug(self, line):
+        print(f"Jour {self.num}")
         print("This is the unsorted cache:")
         print(self.cache)
         print("This is the unsorted cache index table:")
@@ -281,7 +295,7 @@ class Cemantix(cmd.Cmd):
 
     def do_loadFile(self, num):
         """Load the file into a dictionary"""
-        self.filename = "cem" + str(num) + ".csv"
+        self.filename = "cemantle" + str(num) + ".csv"
         self.num = num
         # if cachePath doesn't exist, create it
         if not os.path.exists(cachePath):
@@ -369,7 +383,7 @@ class Cemantix(cmd.Cmd):
             Word = ret[i][2]
             # run grep on the cache file to get entries from 1 to 1000
             # search in given csv file for 1000
-            filename = cachePath + "cem" + str(Num) + ".csv"
+            filename = cachePath + "cemantle" + str(Num) + ".csv"
             try:
                 with open(filename, "r") as f:
                     reader = csv.reader(f)
@@ -400,6 +414,8 @@ class Cemantix(cmd.Cmd):
         #   self.cls()
         self.loadCache()
         response = self.postWord("score", word)
+
+        self.cls()
         try:
             response["percentile"] = response["p"]
         except KeyError:
@@ -435,7 +451,6 @@ class Cemantix(cmd.Cmd):
             self.writeCacheLine(row)
 
         #  s_idx = 1
-        self.cls()
         self.print_row(self, self.lastRow, 0, response["score"])
         self.do_printCache(word)
 
