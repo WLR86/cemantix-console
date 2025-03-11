@@ -397,7 +397,7 @@ class Cemantix(cmd.Cmd):
         if self.startDate != datetime.date.today():
             self.init()
         self.limit = self.getScreenSize()[0] - 3
-        self.cls()
+        #   self.cls()
         self.loadCache()
         response = self.postWord("score", word)
         try:
@@ -435,6 +435,7 @@ class Cemantix(cmd.Cmd):
             self.writeCacheLine(row)
 
         #  s_idx = 1
+        self.cls()
         self.print_row(self, self.lastRow, 0, response["score"])
         self.do_printCache(word)
 
