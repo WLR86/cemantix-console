@@ -1,19 +1,40 @@
 #!/usr/bin/env python
 
-import os
-import signal
-import re
-from pathlib import Path
-import datetime
 import cmd
 import csv
+import datetime
+import os
+
+import re
+import signal
+import sys
+from pathlib import Path
+
 import requests
 from termcolor import colored
 
-cemantix_URL = "https://cemantle.certitudes.org"
+# Set language from command line argument
+try:
+    lang = sys.argv[1]
+
+except IndexError:
+    lang = "fr"
+
+if lang == "fr":
+    game_name = "Cémantix"
+    cemantix_URL = "https://cemantix.certitudes.org"
+    origin = datetime.date(2022, 3, 3)
+    prefix = "cem"
+
+else:
+    game_name = "Cemantle"
+    cemantix_URL = "https://cemantle.certitudes.org"
+    origin = datetime.date(2022, 4, 5)
+    prefix = "cemantle"
+
+
 headers = {"Origin": cemantix_URL, "Referer": cemantix_URL}
 cachePath = os.path.expanduser("~/.cemantix/")
-origin = datetime.date(2022, 4, 5)
 
 
 def handle_sigchld(signum, frame):
@@ -30,13 +51,14 @@ signal.signal(signal.SIGCHLD, handle_sigchld)
 
 
 class Cemantix(cmd.Cmd):
-    prompt = "Cémantix > "
-    intro = "Welcome to Cémantix"
+    prompt = f"{game_name}> "
+    intro = f"Welcome to {game_name}"
     limit = 20
     lastRow = {}
     cache = {}
     cache_idx = []
     s_cache = []
+    elapsedTime = 0
 
     def preloop(self):
         self.cls()
@@ -52,10 +74,6 @@ class Cemantix(cmd.Cmd):
             line = "help"
         return line
 
-    def emptyline(self):
-        line = "help cmd"
-        return line
-
     def cls(self):
         out = os.system("cls" if os.name == "nt" else "clear")
         return out
@@ -69,7 +87,10 @@ class Cemantix(cmd.Cmd):
 
         #  self.loadCache(self)
         self.loadCache()
-        self.limit = self.getScreenSize()[0] - 3
+        try:
+            self.limit = self.getScreenSize()[0] - 3
+        except ValueError:
+            self.limit = 10
         self.do_printCache("")
         #  self.print()
 
@@ -156,7 +177,7 @@ class Cemantix(cmd.Cmd):
         if solvers:
             print(
                 colored(
-                    "* {:>4}{:>20} {:>6}°C{:>3}{:>5}  {:<20} {:>7}".format(
+                    "* {:>4}{:>20} {:>6}°C{:>3}{:>5}  {:<19} {:>7} {:5.1f}ms".format(
                         " ",
                         row["word"],
                         temperature,
@@ -164,6 +185,7 @@ class Cemantix(cmd.Cmd):
                         row["percentile"],
                         "Solvers:",
                         row["v"],
+                        self.elapsedTime * 1000,
                     ),
                     color,
                     attrs=style,
@@ -198,6 +220,7 @@ class Cemantix(cmd.Cmd):
         response = r.post(
             f"{cemantix_URL}/{verb}?n={self.num}", headers=headers, data=data
         )
+        self.elapsedTime = response.elapsed.total_seconds()
         return response.json()
 
     def getScreenSize(self):
@@ -218,6 +241,7 @@ class Cemantix(cmd.Cmd):
         out = r.post(
             f"{cemantix_URL}/{action}?n={self.num}", headers=headers, data=data
         )
+        self.elapsedTime = out.elapsed.total_seconds()
         if out.status_code == 200:
             return out.json()
         else:
@@ -227,7 +251,7 @@ class Cemantix(cmd.Cmd):
         num = self.num
         if not Path(cachePath).is_dir():
             os.makedirs(cachePath, mode=0o755, exist_ok=True)
-        self.filename = f"{cachePath}cemantle{num}.csv"
+        self.filename = f"{cachePath}{prefix}{num}.csv"
         #  print(self.filename)
         try:
             dataset = list()
@@ -285,7 +309,7 @@ class Cemantix(cmd.Cmd):
         self.print_row(self, row, bold=True)
 
     def do_debug(self, line):
-        print(f"Jour {self.num}")
+        print(f"Game #{self.num}")
         print("This is the unsorted cache:")
         print(self.cache)
         print("This is the unsorted cache index table:")
@@ -295,7 +319,7 @@ class Cemantix(cmd.Cmd):
 
     def do_loadFile(self, num):
         """Load the file into a dictionary"""
-        self.filename = "cemantle" + str(num) + ".csv"
+        self.filename = prefix + str(num) + ".csv"
         self.num = num
         # if cachePath doesn't exist, create it
         if not os.path.exists(cachePath):
@@ -383,7 +407,7 @@ class Cemantix(cmd.Cmd):
             Word = ret[i][2]
             # run grep on the cache file to get entries from 1 to 1000
             # search in given csv file for 1000
-            filename = cachePath + "cemantle" + str(Num) + ".csv"
+            filename = cachePath + prefix + str(Num) + ".csv"
             try:
                 with open(filename, "r") as f:
                     reader = csv.reader(f)
