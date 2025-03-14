@@ -8,6 +8,7 @@ import re
 import signal
 import sys
 import configparser
+import shutil
 from pathlib import Path
 
 import requests
@@ -397,8 +398,11 @@ class Cemantix(cmd.Cmd):
             print("Cheater !")
 
     def do_reset(self, line):
+        """Resets the current game"""
         # This command resets the game so the cache is flushed
         self.cache = []
+        # Make a backup just in case
+        shutil.copy(self.filename, "/tmp")
         # and the csv file content is deleted
         os.remove(self.filename)
         self.init()
