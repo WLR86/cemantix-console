@@ -396,6 +396,13 @@ class Cemantix(cmd.Cmd):
         else:
             print("Cheater !")
 
+    def do_reset(self, line):
+        # This command resets the game so the cache is flushed
+        self.cache = []
+        # and the csv file content is deleted
+        os.remove(self.filename)
+        self.init()
+
     def do_history(self, line):
         """Print the history of words and their scores"""
         self.limit = self.getScreenSize()[0] - 3
