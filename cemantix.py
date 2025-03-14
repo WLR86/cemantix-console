@@ -2,12 +2,12 @@
 
 import cmd
 import csv
-import datetime
+from datetime import datetime, date
 import os
-
 import re
 import signal
 import sys
+import configparser
 from pathlib import Path
 
 import requests
@@ -19,21 +19,22 @@ try:
 
 except IndexError:
     lang = "fr"
-
-if lang == "fr":
-    game_name = "Cémantix"
-    cemantix_URL = "https://cemantix.certitudes.org"
-    origin = datetime.date(2022, 3, 3)
-    prefix = "cem"
-
+#
+# Load settings from ini file config.ini where sections are selected by var lang :
+config = configparser.ConfigParser()
+config.read("config.ini")
+if lang in config:
+    settings = {key: value for key, value in config[lang].items()}
+    # globals().update(settings)
+    game_name = settings["game_name"]
+    cemantix_url = settings["cemantix_url"]
+    prefix = settings["prefix"]
+    # convert string to actual date object
+    origin = date.fromisoformat(settings["origin"])
 else:
-    game_name = "Cemantle"
-    cemantix_URL = "https://cemantle.certitudes.org"
-    origin = datetime.date(2022, 4, 5)
-    prefix = "cemantle"
+    raise ValueError(f"La langue {lang} n'a pas été trouvée dans le fichier config.ini")
 
-
-headers = {"Origin": cemantix_URL, "Referer": cemantix_URL}
+headers = {"Origin": cemantix_url, "Referer": cemantix_url}
 cachePath = os.path.expanduser("~/.cemantix/")
 
 
@@ -80,7 +81,7 @@ class Cemantix(cmd.Cmd):
 
     def init(self):
         # get today's date in Ymd format
-        self.startDate = datetime.date.today()
+        self.startDate = date.today()
         # no longer served
         # self.num = self.get('stats')['n']
         self.num = (self.startDate - origin).days + 1
@@ -209,16 +210,16 @@ class Cemantix(cmd.Cmd):
                 pass
 
     def get(self, verb):
-        """Send a GET request to cemantix_URL and return the response"""
+        """Send a GET request to cemantix_url and return the response"""
         r = requests.Session()
-        response = r.get(f"{cemantix_URL}/{verb}?n={self.num}", headers=headers)
+        response = r.get(f"{cemantix_url}/{verb}?n={self.num}", headers=headers)
         return response.json()
 
     def post(self, verb, data):
-        """Send a POST request to cemantix_URL and return the response"""
+        """Send a POST request to cemantix_url and return the response"""
         r = requests.Session()
         response = r.post(
-            f"{cemantix_URL}/{verb}?n={self.num}", headers=headers, data=data
+            f"{cemantix_url}/{verb}?n={self.num}", headers=headers, data=data
         )
         self.elapsedTime = response.elapsed.total_seconds()
         return response.json()
@@ -239,7 +240,7 @@ class Cemantix(cmd.Cmd):
         data = {"word": word}
         r = requests.Session()
         out = r.post(
-            f"{cemantix_URL}/{action}?n={self.num}", headers=headers, data=data
+            f"{cemantix_url}/{action}?n={self.num}", headers=headers, data=data
         )
         self.elapsedTime = out.elapsed.total_seconds()
         if out.status_code == 200:
@@ -429,10 +430,10 @@ class Cemantix(cmd.Cmd):
 
     def do_try(self, word):
         """
-        Send word via POST request to cemantix_URL and return its score
+        Send word via POST request to cemantix_url and return its score
         """
         # If the date is different from the one in the cache, we have to re-initialiaze the game
-        if self.startDate != datetime.date.today():
+        if self.startDate != date.today():
             self.init()
         self.limit = self.getScreenSize()[0] - 3
         #   self.cls()
