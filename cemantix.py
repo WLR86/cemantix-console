@@ -402,9 +402,7 @@ class Cemantix(cmd.Cmd):
         # This command resets the game so the cache is flushed
         self.cache = []
         # Make a backup just in case
-        shutil.copy(self.filename, "/tmp")
-        # and the csv file content is deleted
-        os.remove(self.filename)
+        shutil.move(self.filename, self.filename.replace("csv", "bak.csv"))
         self.init()
 
     def do_history(self, line):
