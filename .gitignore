@@ -1,2 +1,3 @@
 *.swp
 tags
+.php-cs-fixer.cache
