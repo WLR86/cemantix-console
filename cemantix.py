@@ -124,20 +124,9 @@ class Cemantix(cmd.Cmd):
             percent = row["percentile"]
         except KeyError:
             percent = 0
-        if percent == 1000:
-            icon = "🥳"
-        elif percent > 998:
-            icon = "😱"
-        elif percent > 990:
-            icon = "🔥"
-        elif percent > 900:
-            icon = "🥵"
-        elif percent > 1:
-            icon = "😎"
-        elif percent > 0:
-            icon = "🥶"
-        else:
-            icon = "🧊"
+
+        icon = self.icon(percent)
+
         if bold:
             style = ["bold"]
         else:
@@ -248,6 +237,23 @@ class Cemantix(cmd.Cmd):
             return out.json()
         else:
             return out.status_code
+
+    def icon(self, value):
+        """output icon for temperature based on a value from 0 to 1000"""
+        icon = ""
+        if value == 1000:
+            icon = "🥳"
+        elif value > 998:
+            icon = "😱"
+        elif value > 990:
+            icon = "🔥"
+        elif value > 900:
+            icon = "🥵"
+        elif value > 1:
+            icon = "😎"
+        elif value > 0:
+            icon = "🥶"
+        return icon
 
     def loadCache(self):
         num = self.num
@@ -379,19 +385,26 @@ class Cemantix(cmd.Cmd):
         if self.s_cache[0]["percentile"] == 1000:
             word = self.s_cache[0]["word"]
             ret = self.post("nearby", {"word": word})
+            sorted_data = dict(
+                sorted(ret.items(), key=lambda item: item[1][0], reverse=True)
+            )
             i, t = 0, {}
             self.cls()
-            for word, percentile, score in ret:
+            for key, values in sorted_data.items():
                 t["idx"] = i
-                t["word"] = word
-                t["percentile"] = percentile
-                t["score"] = round(score, 4)
+                t["word"] = key
+                t["percentile"] = values[0]
+                t["score"] = round(float(values[1]), 4)
                 i += 1
-                if i < self.limit + 3:
-                    temperature = t["score"]
+                if i < (self.limit + 3):
+                    # self.print_row(t, i)
                     print(
-                        "* {:3} {:20} {:6.2f}°C {:4} ".format(
-                            i, word, temperature, percentile
+                        "* {:3} {:20} {:3} {:6.2f}°C {:4} ".format(
+                            i,
+                            t["word"],
+                            self.icon(t["percentile"]),
+                            t["score"],
+                            t["percentile"],
                         )
                     )
         else:
