@@ -125,7 +125,7 @@ class Cemantix(cmd.Cmd):
         except KeyError:
             percent = 0
 
-        icon = self.icon(percent)
+        icon = self.icon(percent, temperature)
 
         if bold:
             style = ["bold"]
@@ -168,7 +168,7 @@ class Cemantix(cmd.Cmd):
         if solvers:
             print(
                 colored(
-                    "* {:>4}{:>20} {:>6}°C{:>3}{:>5}  {:<19} {:>7} {:5.1f}ms".format(
+                    "* {:>4}{:>20} {:>6}°C{:>3}{:>5}  {:<20} {:>7} {:5.1f}ms".format(
                         " ",
                         row["word"],
                         temperature,
@@ -238,9 +238,28 @@ class Cemantix(cmd.Cmd):
         else:
             return out.status_code
 
-    def icon(self, value):
-        """output icon for temperature based on a value from 0 to 1000"""
-        icon = ""
+    def icon(self, p, t):
+        """
+        output icon for temperature based on a value from -100 to 100
+        linearized on a scale from 0 to 1000
+        t : -100 to 100
+        p : percentile ranging from 0 to 1000 (0: out of the top 1000 words)
+            P        S
+            1000 🥳 100.00
+             999 😱 63.66
+             990 🔥 39.41
+             900 🥵 27.71
+               1 😎 17.33
+               0 🥶 0.00
+               0  🧊 -100.00
+        S scale is changing from game to game, so we can't set reliable steps
+        """
+        value = p
+        icon = "🥶"
+
+        if t < 0:
+            p = -1
+            icon = "🧊"
         if value == 1000:
             icon = "🥳"
         elif value > 998:
@@ -251,8 +270,6 @@ class Cemantix(cmd.Cmd):
             icon = "🥵"
         elif value > 1:
             icon = "😎"
-        elif value > 0:
-            icon = "🥶"
         return icon
 
     def loadCache(self):
