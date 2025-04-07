@@ -251,7 +251,7 @@ class Cemantix(cmd.Cmd):
              900 🥵 27.71
                1 😎 17.33
                0 🥶 0.00
-               0  🧊 -100.00
+               0 🧊 -100.00
         S scale is changing from game to game, so we can't set reliable steps
         """
         value = p
