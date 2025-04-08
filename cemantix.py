@@ -419,7 +419,7 @@ class Cemantix(cmd.Cmd):
                         "* {:3} {:20} {:3} {:6.2f}°C {:4} ".format(
                             i,
                             t["word"],
-                            self.icon(t["percentile"]),
+                            self.icon(t["percentile"], t["score"]),
                             t["score"],
                             t["percentile"],
                         )
