@@ -168,7 +168,7 @@ class Cemantix(cmd.Cmd):
         if solvers:
             print(
                 colored(
-                    "* {:>4}{:>20} {:>6}°C{:>3}{:>5}  {:<20} {:>7} {:5.1f}ms".format(
+                    "| {:>4}{:>20} {:>6}°C{:>3}{:>5}  {:<19} {:>7} | Time {:5.1f}ms".format(
                         " ",
                         row["word"],
                         temperature,
@@ -186,7 +186,7 @@ class Cemantix(cmd.Cmd):
         else:
             try:
                 idx = self.cache_idx.index(row["word"])
-                thisline = "* {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7}".format(
+                thisline = "| {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7} |".format(
                     idx + 1,
                     row["word"],
                     temperature,
@@ -416,7 +416,7 @@ class Cemantix(cmd.Cmd):
                 if i < (self.limit + 3):
                     # self.print_row(t, i)
                     print(
-                        "* {:3} {:20} {:3} {:6.2f}°C {:4} ".format(
+                        "| {:3} {:20} {:3} {:6.2f}°C {:4} ".format(
                             i,
                             t["word"],
                             self.icon(t["percentile"], t["score"]),
@@ -460,7 +460,7 @@ class Cemantix(cmd.Cmd):
                             foundMark = "✅"
                             NTries = idx
                     print(
-                        "* {:4} {:4} {:20} {:8} {:1}".format(
+                        "| {:4} {:4} {:20} {:8} {:1}".format(
                             Num, NTries, Word, Solvers, foundMark
                         )
                     )
