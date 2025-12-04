@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 
 import cmd
+import configparser
 import csv
-from datetime import datetime, date
 import os
 import re
+import shutil
 import signal
 import sys
-import configparser
-import shutil
+from datetime import date
 from pathlib import Path
+from typing import Literal
 
 import requests
 from termcolor import colored
@@ -53,14 +54,16 @@ signal.signal(signal.SIGCHLD, handle_sigchld)
 
 
 class Cemantix(cmd.Cmd):
-    prompt = f"{game_name}> "
-    intro = f"Welcome to {game_name}"
-    limit = 20
-    lastRow = {}
-    cache = {}
-    cache_idx = []
-    s_cache = []
-    elapsedTime = 0
+    prompt: str = f"{game_name}> "
+    intro: str = f"Welcome to {game_name}"
+    limit: int = 20
+    row: dict = {}
+    lastRow: dict = {}
+    cache: list = []
+    cache_idx: list = []
+    s_cache: list = []
+    elapsedTime: float = 0
+    TermAttr = Literal["bold", "dark", "underline", "blink", "reverse", "concealed"]
 
     def preloop(self):
         self.cls()
@@ -107,13 +110,13 @@ class Cemantix(cmd.Cmd):
 
         self.print_row(self, self.postWord("score", word), bold=True)
 
-    def print_row(self, row, s_idx=0, bold=False, solvers=False):
+    def print_row(self, row={}, s_idx=0, bold=False, solvers=False):
         """Print a row of the cache"""
         # test if row is a valid dictionary
         if not isinstance(row, dict):
             row = self.lastRow
 
-        style = ""
+        style = ["blink"]
         color = "white"
         icon = "?"
         try:
@@ -128,9 +131,11 @@ class Cemantix(cmd.Cmd):
         icon = self.icon(percent, temperature)
 
         if bold:
-            style = ["bold"]
+            style: list = ["bold"]
+            style_str = "bold"
         else:
-            style = []
+            style: list = [""]
+            style_str = ""
         try:
             row["percentile"] = row["percentile"] if "percentile" in row else 0
         except KeyError:
@@ -179,7 +184,7 @@ class Cemantix(cmd.Cmd):
                         self.elapsedTime * 1000,
                     ),
                     color,
-                    attrs=style,
+                    attrs=style_str,
                 )
             )
             print("")
@@ -329,7 +334,7 @@ class Cemantix(cmd.Cmd):
         print(self.cache)
 
     def do_print(self, line):
-        row = self.lastRow
+        row: dict = self.lastRow
         row["word"] = line
         self.print_row(self, row, bold=True)
 
