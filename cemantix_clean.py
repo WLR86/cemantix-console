@@ -225,7 +225,7 @@ class TerminalUI:
         }
 
         if result.percentile == 1000:
-            template = "| {idx:>4}{word:>20} {temp:>6}°C {icon:>3}{percent:>5}  Solvers: {solvers:>7} |"
+            template = "| {idx:>4}{word:>20} {temp:>6}°C {icon:>3}{percent:>5} {bar:<20} {total:>7} |"
         else:
             template = "| {idx:>4}{word:>20} {temp:>6}°C {icon:>3}{percent:>5} {bar:<20} {total:>7} |"
 
