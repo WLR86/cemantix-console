@@ -34,6 +34,7 @@ class GameState:
     cache_path: Path
     url: str = ""
     game_name: str = ""
+    prefix: str = ""
     cache: list[GameResult] = field(default_factory=list)
     last_result: Optional[GameResult] = None
     last_response_time: float = 0.0
@@ -68,6 +69,7 @@ class CemantixGame:
             cache_path=cache_dir / f"{settings['prefix']}{game_num}.csv",
             url=url,
             game_name=settings["game_name"],
+            prefix=settings["prefix"],
         )
 
     def guess(self, word: str) -> GameResult | None:
@@ -114,6 +116,20 @@ class CemantixGame:
         )
         response.raise_for_status()
         return response.json()  # [[num, solvers, word], ...]
+
+    def check_game_solved(self, game_num: int, prefix: str) -> bool:
+        """Vérifie si une partie a été résolue en analysant le CSV local"""
+        cache_file = Path.home() / ".cemantix" / f"{prefix}{game_num}.csv"
+        if not cache_file.exists():
+            return False
+        try:
+            with open(cache_file, "r") as f:
+                for row in csv.reader(f):
+                    if len(row) >= 3 and row[2] == "1000":
+                        return True
+        except Exception:
+            pass
+        return False
 
     def _save_result(self, result: GameResult) -> None:
         """Sauvegarde le résultat dans le cache"""
@@ -381,9 +397,22 @@ class CemantixCLI:
 
             case "history":
                 history = self.game.get_history()
-                for num, solvers, word in history[:20]:
-                    print(f"| {num:>4} {solvers:>4} {word:<20} |")
-                self._display_cache()
+                prefix = self.game.state.prefix
+                print("")
+                for entry in history[:20]:
+                    num, solvers, word = entry
+                    # Use local CSV to check if WE solved it
+                    solved = self.game.check_game_solved(num, prefix)
+                    status = "✅" if solved else "❌"
+                    color = "green" if solved else "red"
+                    display_word = word if word else "(non trouvé)"
+                    print(
+                        colored(
+                            f"| {num:>4} {status} {solvers:>6} {display_word:<20}",
+                            color,
+                        )
+                    )
+                input("Appuyez sur Entrée pour continuer...")
 
             case "cls":
                 pass  # _display_cache will be called next loop

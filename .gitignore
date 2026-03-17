@@ -3,3 +3,4 @@ tags
 .php-cs-fixer.cache
 __pycache__
 __pycache__/*
+__pycache__/cemantix_clean.cpython-313.pyc
