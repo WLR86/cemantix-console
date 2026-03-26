@@ -224,10 +224,7 @@ class TerminalUI:
             "total": f"{idx}/{total}",
         }
 
-        if result.percentile == 1000:
-            template = "| {idx:>4}{word:>20} {temp:>6}°C {icon:>3}{percent:>5} {bar:<20} {total:>7} |"
-        else:
-            template = "| {idx:>4}{word:>20} {temp:>6}°C {icon:>3}{percent:>5} {bar:<20} {total:>7} |"
+        template = "| {idx:>4}{word:>20} {temp:>6}°C {icon:>3}{percent:>5} {bar:<20} {total:>7} |"
 
         text = template.format(**fmt_args, solvers=result.solvers)
         attrs: list[Any] = ["bold"] if bold else []
@@ -237,11 +234,11 @@ class TerminalUI:
     def format_header(result: GameResult, response_time: float) -> str:
         temp = TerminalUI.temp_to_degrees(result.score)
         icon = TerminalUI.get_icon(result.percentile, result.score)
+        time_ms = f"{response_time * 1000:.1f}ms"
 
-        if result.percentile == 1000:
-            text = f"| {'':<4}{result.word:>20} {temp:>6}°C {icon:>3}{result.percentile:>5}  Solvers: {result.solvers:>7} | Time {response_time * 1000:.1f}ms"
-        else:
-            text = f"| {'':<4}{result.word:>20} {temp:>6}°C {icon:>3}{result.percentile:>5}  Solvers: {result.solvers:>7} | Time {response_time * 1000:.1f}ms"
+        text = f"| {'':<4}{result.word:>20} {temp:>6}°C {icon:>3}{result.percentile:>5} Solvers:{result.solvers:>6} {time_ms:>13} |"
+
+        return colored(text, "white", attrs=["bold"])
 
         return colored(text, "white", attrs=["bold"])
 
@@ -253,6 +250,7 @@ class CemantixCLI:
         self.prompt = f"{self.game.state.game_name}> "
         self._histfile: Path | None = None
         self._message: str = ""
+        self._welcome_shown: bool = False
         self._init_readline()
 
     def _init_readline(self) -> None:
@@ -298,7 +296,6 @@ class CemantixCLI:
             pass
 
     def run(self) -> None:
-        print(f"Welcome to {self.game.state.game_name} (Game #{self.game.state.num})")
         self.game.load_cache()
 
         while True:
@@ -330,9 +327,11 @@ class CemantixCLI:
         sys.stderr.flush()
         sys.stdout.flush()
 
-        if self._message:
-            print(f"  >> {self._message} <<\n")
-            self._message = ""
+        if not self._welcome_shown:
+            print(
+                f"Welcome to {self.game.state.game_name} (Game #{self.game.state.num})\n"
+            )
+            self._welcome_shown = True
 
         rows, _ = self.ui.get_terminal_size()
         max_lines = rows - 3
@@ -355,6 +354,10 @@ class CemantixCLI:
             bold = result.word == last_word
             print(self.ui.format_row(result, i, len(sorted_cache), bold=bold))
 
+        if self._message:
+            print(f"\n  >> {self._message} <<")
+            self._message = ""
+
     def _handle_command(self, cmd: str) -> None:
         parts = cmd.split()
         command = parts[0]
@@ -369,20 +372,17 @@ class CemantixCLI:
   /printCache - Afficher les mots essayés
   /cls        - Effacer l'écran
   /quit       - Quitter""")
-                self._display_cache()
 
             case "printCache":
-                self._display_cache()
+                pass
 
             case "nearby":
                 if not self.game.state.cache:
                     self._message = "Aucun mot trouvé"
-                    self._display_cache()
                     return
                 top = max(self.game.state.cache, key=lambda r: r.percentile)
                 if top.percentile < 1000:
                     self._message = "Il faut d'abord trouver le mot!"
-                    self._display_cache()
                     return
 
                 nearby = self.game.get_nearby(top.word)
@@ -422,20 +422,16 @@ class CemantixCLI:
 
             case _:
                 self._message = f"Commande inconnue: /{command}"
-                self._display_cache()
 
     def _handle_guess(self, word: str) -> None:
         try:
             result = self.game.guess(word)
             if result and result.percentile == 1000:
                 self._message = f"🎉 Gagné! Mot trouvé: {word}"
-            self._display_cache()
         except ValueError as e:
             self._message = f"Erreur: {e}"
-            self._display_cache()
         except requests.RequestException as e:
             self._message = f"Erreur: {e}"
-            self._display_cache()
 
 
 if __name__ == "__main__":
