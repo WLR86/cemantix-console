@@ -382,7 +382,7 @@ class CemantixCLI:
                     return
                 top = max(self.game.state.cache, key=lambda r: r.percentile)
                 if top.percentile < 1000:
-                    self._message = "Il faut d'abord trouver le mot!"
+                    self._message = "Il faut d'abord trouver le mot !"
                     return
 
                 nearby = self.game.get_nearby(top.word)
