@@ -4,6 +4,7 @@
 import csv
 import configparser
 import os
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -84,7 +85,7 @@ class CemantixGame:
         data = response.json()
 
         if "e" in data:
-            error_msg = data["e"]
+            error_msg = re.sub(r"<[^>]+>", "", data["e"])
             raise ValueError(error_msg)
 
         result = GameResult(
