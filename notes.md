@@ -62,3 +62,14 @@ Lorsque le mot n'existe pas, le json retourné est de cette forme :
 ```JSON
 {"e":"Je ne connais pas le mot <i>xxxxxxxx</i>."}
 ```
+
+## infos concernant la commande nearby
+
+Une fois le mot du jour trouvé, il est possible d'obtenir le top 1000 des mots autour du mot du jour, 1 étant le mot du jour, les suivants jusqu'à 1000 étant les suivants de plus en plus éloignés.
+
+La commande nearby induit une requête post (/nearby) avec le paramètre 'word' contenant le mot du jour (ce qui permet de prouver que le mot a bien été trouvé), en réponse, le serveur retourne un json contenant les mots, accompagnés de leur rang (de 1 à 1000), et la température ()
+
+```json
+{"maurrassien":[542,28.02],"meeting":[941,40.44],"menchevik":[842,35.19],"mener":[555,28.18],"messaliste":[795,33.62],"metton":[117,23.68],"milicien":[151,23.97],"militance":[994,54.26],"militant":[1000,100.0],"militantisme":[998,63.57], ... }
+
+```
