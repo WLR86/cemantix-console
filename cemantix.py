@@ -137,6 +137,18 @@ class CemantixGame:
             pass
         return None
 
+    def reset(self) -> None:
+        """Réinitialise la partie en cours : sauvegarde le cache existant
+        (au cas où) puis repart de zéro"""
+        if self.state.cache_path.exists():
+            backup_path = self.state.cache_path.with_name(
+                f"{self.state.cache_path.stem}.bak.csv"
+            )
+            self.state.cache_path.replace(backup_path)
+        self.state.cache = []
+        self.state.last_result = None
+        self.state.last_response_time = 0.0
+
     def _save_result(self, result: GameResult) -> None:
         """Sauvegarde le résultat dans le cache"""
         if any(r.word == result.word for r in self.state.cache):
@@ -272,6 +284,8 @@ class CemantixCLI:
                 "nearby",
                 "history",
                 "printCache",
+                "reset",
+                "restart",
                 "cls",
                 "quit",
                 "exit",
@@ -368,9 +382,15 @@ class CemantixCLI:
   /nearby     - Voir les mots proches (après avoir gagné)
   /history    - Voir l'historique des parties
   /printCache - Afficher les mots essayés
+  /reset      - Recommencer la partie du jour (un backup est créé)
+  /restart    - Alias de /reset
   /cls        - Effacer l'écran
   /quit       - Quitter""")
                 input("Appuyez sur Entrée pour continuer...")
+
+            case "reset" | "restart":
+                self.game.reset()
+                self._message = "Partie réinitialisée"
 
             case "printCache":
                 pass
