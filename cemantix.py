@@ -1,523 +1,454 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+"""Cémantix CLI - Interface pour le jeu Cémantix"""
 
-import cmd
 import csv
-from datetime import datetime, date
+import configparser
 import os
 import re
-import signal
-import sys
-import configparser
-import shutil
+from dataclasses import dataclass, field
+from datetime import date, datetime
 from pathlib import Path
+from typing import Any, Optional
 
 import requests
 from termcolor import colored
 
-# Set language from command line argument
 try:
-    lang = sys.argv[1]
+    import readline
 
-except IndexError:
-    lang = "fr"
-#
-# Load settings from ini file config.ini where sections are selected by var lang :
-config = configparser.ConfigParser()
-config.read("config.ini")
-if lang in config:
-    settings = {key: value for key, value in config[lang].items()}
-    # globals().update(settings)
-    game_name = settings["game_name"]
-    cemantix_url = settings["cemantix_url"]
-    prefix = settings["prefix"]
-    # convert string to actual date object
-    origin = date.fromisoformat(settings["origin"])
-else:
-    raise ValueError(f"La langue {lang} n'a pas été trouvée dans le fichier config.ini")
-
-headers = {"Origin": cemantix_url, "Referer": cemantix_url}
-cachePath = os.path.expanduser("~/.cemantix/")
+    READLINE_AVAILABLE = True
+except ImportError:
+    READLINE_AVAILABLE = False
 
 
-def handle_sigchld(signum, frame):
-    while True:
-        try:
-            pid, _ = os.waitpid(-1, os.WNOHANG)
-            if pid == 0:
-                break
-        except ChildProcessError:
-            break
+@dataclass
+class GameResult:
+    word: str
+    score: float  # 0-1 (température en °C / 100)
+    percentile: int  # 0-1000
+    solvers: int = 0
 
 
-signal.signal(signal.SIGCHLD, handle_sigchld)
+@dataclass
+class GameState:
+    num: int
+    cache_path: Path
+    url: str = ""
+    game_name: str = ""
+    prefix: str = ""
+    cache: list[GameResult] = field(default_factory=list)
+    last_result: Optional[GameResult] = None
+    last_response_time: float = 0.0
 
 
-class Cemantix(cmd.Cmd):
-    prompt = f"{game_name}> "
-    intro = f"Welcome to {game_name}"
-    limit = 20
-    lastRow = {}
-    cache = {}
-    cache_idx = []
-    s_cache = []
-    elapsedTime = 0
+class CemantixGame:
+    def __init__(self, lang: str = "fr", config_path: str = "config.ini"):
+        self.session = requests.Session()
+        self.state = self._load_config(lang, config_path)
+        self.headers = {
+            "Origin": self.state.url,
+            "Referer": self.state.url,
+        }
 
-    def preloop(self):
-        self.cls()
-        self.init()
+    def _load_config(self, lang: str, config_path: str) -> GameState:
+        config = configparser.ConfigParser()
+        config.read(config_path)
 
-    def precmd(self, line):
-        try:
-            if line[0] == "/":
-                line = line[1:]
-            else:
-                line = "try " + line
-        except IndexError:
-            line = "help"
-        return line
+        if lang not in config:
+            raise ValueError(f"Langue '{lang}' non trouvée dans {config_path}")
 
-    def cls(self):
-        out = os.system("cls" if os.name == "nt" else "clear")
-        return out
+        settings = dict(config[lang])
+        origin = date.fromisoformat(settings["origin"])
+        game_num = (date.today() - origin).days + 1
+        url = settings["cemantix_url"]
 
-    def init(self):
-        # get today's date in Ymd format
-        self.startDate = date.today()
-        # no longer served
-        # self.num = self.get('stats')['n']
-        self.num = (self.startDate - origin).days + 1
+        cache_dir = Path.home() / ".cemantix"
+        cache_dir.mkdir(mode=0o755, exist_ok=True)
 
-        #  self.loadCache(self)
-        self.loadCache()
-        try:
-            self.limit = self.getScreenSize()[0] - 3
-        except ValueError:
-            self.limit = 10
-        self.do_printCache("")
-        #  self.print()
-
-    def print(self, word):
-        """Print the word and its score"""
-        self.limit = self.getScreenSize()[0] - 3
-        self.cls()
-        print(word)
-        if word != "":
-            if word in self.cache:
-                self.print_row(self, self.cache[word])
-
-        self.print_row(self, self.postWord("score", word), bold=True)
-
-    def print_row(self, row, s_idx=0, bold=False, solvers=False):
-        """Print a row of the cache"""
-        # test if row is a valid dictionary
-        if not isinstance(row, dict):
-            row = self.lastRow
-
-        style = ""
-        color = "white"
-        icon = "?"
-        try:
-            temperature = round(row["score"] * 1e2, 3)
-        except KeyError:
-            temperature = 0
-        try:
-            percent = row["percentile"]
-        except KeyError:
-            percent = 0
-
-        icon = self.icon(percent, temperature)
-
-        if bold:
-            style = ["bold"]
-        else:
-            style = []
-        try:
-            row["percentile"] = row["percentile"] if "percentile" in row else 0
-        except KeyError:
-            row["percentile"] = 0
-        if row["percentile"] > 990:
-            color = "red"
-        elif row["percentile"] > 900:
-            color = "yellow"
-        elif row["percentile"] > 800:
-            color = "green"
-        elif str(row["percentile"]) == "":
-            color = "white"
-
-        # round the score to 2 decimal after the decimal point
-        try:
-            row["score"] = round(row["score"] * 1e2, 4)
-        except KeyError:
-            row["score"] = 0
-
-        try:
-            row["word"] = row["word"]
-        except KeyError:
-            print(row)
-            row["word"] = "Error"
-
-        #  bargraph = "◼" * int(row['percentile'] / 50) + "◻" * (20 - int(row['percentile'] / 50))
-        bargraph = "◼" * int(row["percentile"] / 50) + " " * (
-            20 - int(row["percentile"] / 50)
+        return GameState(
+            num=game_num,
+            cache_path=cache_dir / f"{settings['prefix']}{game_num}.csv",
+            url=url,
+            game_name=settings["game_name"],
+            prefix=settings["prefix"],
         )
-        try:
-            cnt = f"{row['idx']}/{len(self.cache_idx)}"
-        except KeyError:
-            cnt = "0/0"
-        # if solvers exists this is the current word
-        if solvers:
-            print(
-                colored(
-                    "| {:>4}{:>20} {:>6}°C{:>3}{:>5}  {:<19} {:>7} | Time {:5.1f}ms".format(
-                        " ",
-                        row["word"],
-                        temperature,
-                        icon,
-                        row["percentile"],
-                        "Solvers:",
-                        row["v"],
-                        self.elapsedTime * 1000,
-                    ),
-                    color,
-                    attrs=style,
-                )
-            )
-            print("")
-        else:
-            try:
-                idx = self.cache_idx.index(row["word"])
-                thisline = "| {:>4}{:>20} {:>6}°C{:>3}{:>5} {:<20} {:>7} |".format(
-                    idx + 1,
-                    row["word"],
-                    temperature,
-                    icon,
-                    row["percentile"],
-                    bargraph,
-                    cnt,
-                )
-                print(colored(thisline, color, attrs=style))
-            except ValueError:
-                pass
 
-    def get(self, verb):
-        """Send a GET request to cemantix_url and return the response"""
-        r = requests.Session()
-        response = r.get(f"{cemantix_url}/{verb}?n={self.num}", headers=headers)
-        return response.json()
-
-    def post(self, verb, data):
-        """Send a POST request to cemantix_url and return the response"""
-        r = requests.Session()
-        response = r.post(
-            f"{cemantix_url}/{verb}?n={self.num}", headers=headers, data=data
+    def guess(self, word: str) -> GameResult | None:
+        """Propose un mot et retourne le résultat, ou None si le mot n'existe pas"""
+        response = self.session.post(
+            f"{self.state.url}/score?n={self.state.num}",
+            headers=self.headers,
+            data={"word": word},
         )
-        self.elapsedTime = response.elapsed.total_seconds()
-        return response.json()
+        response.raise_for_status()
+        self.state.last_response_time = response.elapsed.total_seconds()
+        data = response.json()
 
-    def getScreenSize(self):
-        """return the stty rows and columns"""
-        # return the stty rows and columns
-        rows, columns = os.popen("stty size", "r").read().split()
-        return int(rows), int(columns)
+        if "e" in data:
+            error_msg = re.sub(r"<[^>]+>", "", data["e"])
+            raise ValueError(error_msg)
 
-    def postWord(self, action, word):
-        """
-        Returns the score of the word, or an error message
-        if the word is not found, or a status_code if the request
-        fails
-        """
-        action = "score"
-        data = {"word": word}
-        r = requests.Session()
-        out = r.post(
-            f"{cemantix_url}/{action}?n={self.num}", headers=headers, data=data
+        result = GameResult(
+            word=word,
+            score=data.get("s", 0),
+            percentile=data.get("p", 0),
+            solvers=data.get("v", 0),
         )
-        self.elapsedTime = out.elapsed.total_seconds()
-        if out.status_code == 200:
-            return out.json()
-        else:
-            return out.status_code
 
-    def icon(self, p, t):
-        """
-        output icon for temperature based on a value from -100 to 100
-        linearized on a scale from 0 to 1000
-        t : -100 to 100
-        p : percentile ranging from 0 to 1000 (0: out of the top 1000 words)
-            P        S
-            1000 🥳 100.00
-             999 😱 63.66
-             990 🔥 39.41
-             900 🥵 27.71
-               1 😎 17.33
-               0 🥶 0.00
-               0 🧊 -100.00
-        S scale is changing from game to game, so we can't set reliable steps
-        """
-        value = p
-        icon = "🥶"
+        self._save_result(result)
+        self.state.last_result = result
+        return result
 
-        if t < 0:
-            p = -1
-            icon = "🧊"
-        if value == 1000:
-            icon = "🥳"
-        elif value > 998:
-            icon = "😱"
-        elif value > 990:
-            icon = "🔥"
-        elif value > 900:
-            icon = "🥵"
-        elif value > 1:
-            icon = "😎"
-        return icon
+    def get_nearby(self, word: str) -> dict[str, tuple[int, float]]:
+        """Récupère les mots proches (après avoir trouvé le mot)"""
+        response = self.session.post(
+            f"{self.state.url}/nearby?n={self.state.num}",
+            headers=self.headers,
+            data={"word": word},
+        )
+        response.raise_for_status()
+        return response.json()  # {word: (percentile, score)}
 
-    def loadCache(self):
-        num = self.num
-        if not Path(cachePath).is_dir():
-            os.makedirs(cachePath, mode=0o755, exist_ok=True)
-        self.filename = f"{cachePath}{prefix}{num}.csv"
-        #  print(self.filename)
+    def get_history(self) -> list[tuple[int, int, str]]:
+        """Récupère l'historique des parties"""
+        response = self.session.get(
+            f"{self.state.url}/history?n={self.state.num}",
+            headers=self.headers,
+        )
+        response.raise_for_status()
+        return response.json()  # [[num, solvers, word], ...]
+
+    def check_game_solved(self, game_num: int, prefix: str) -> Optional[str]:
+        """Vérifie si une partie a été résolue en analysant le CSV local, et
+        retourne le mot trouvé (le serveur ne révèle pas le mot du jour en cours)"""
+        cache_file = Path.home() / ".cemantix" / f"{prefix}{game_num}.csv"
+        if not cache_file.exists():
+            return None
         try:
-            dataset = list()
-            self.cache_idx = list()
-            with open(self.filename, "r+") as file:
-                csv_reader = csv.reader(file)
-                for row in csv_reader:
-                    if not row:
-                        continue
-                    dataset.append(
-                        {
-                            "word": row[0],
-                            "score": float(row[1]),
-                            "percentile": int(row[2]),
-                        }
+            with open(cache_file, "r") as f:
+                for row in csv.reader(f):
+                    if len(row) >= 3 and row[2] == "1000":
+                        return row[0]
+        except Exception:
+            pass
+        return None
+
+    def _save_result(self, result: GameResult) -> None:
+        """Sauvegarde le résultat dans le cache"""
+        if any(r.word == result.word for r in self.state.cache):
+            return
+
+        self.state.cache.append(result)
+        with open(self.state.cache_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([result.word, result.score, result.percentile])
+
+    def load_cache(self) -> None:
+        """Charge le cache depuis le fichier"""
+        if not self.state.cache_path.exists():
+            return
+
+        self.state.cache = []
+        with open(self.state.cache_path, "r") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if row:
+                    self.state.cache.append(
+                        GameResult(
+                            word=row[0],
+                            score=float(row[1]),
+                            percentile=int(row[2]),
+                        )
                     )
-                    self.cache_idx.append(row[0])
-            self.cache = dataset
-            self.s_cache = sorted(
-                dataset, key=lambda x: (x["score"], x["percentile"]), reverse=True
-            )
 
-        except FileNotFoundError:
-            # actually no nothing
-            # print(f"File {self.filename} not found", file=sys.stderr)
-            pass
+    def get_sorted_cache(self) -> list[GameResult]:
+        """Retourne le cache trié par score décroissant"""
+        return sorted(
+            self.state.cache, key=lambda r: (r.score, r.percentile), reverse=True
+        )
 
-    def writeCacheLine(self, row):
-        """Add a line to the cache file"""
-        word = row[0]
-        alreadyThere = any(word in d.values() for d in self.cache)
-        if not alreadyThere:
-            with open(self.filename, "a+", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow(row)
 
-    def completedefault(self, *args):
-        """Default completion function"""
-        commands = set(self.completenames(*args))
-        topics = set(a[5:] for a in self.get_names() if a.startswith("help_" + args[0]))
-        return list(commands | topics)
+class TerminalUI:
+    ICONS = {
+        (999, 1001): "🥳",
+        (990, 999): "🔥",
+        (900, 990): "🥵",
+        (1, 900): "😎",
+        (-1, 0): "🥶",
+        (-2, -1): "🧊",
+    }
 
-    def do_init(self, line):
-        self.init()
+    @staticmethod
+    def temp_to_degrees(score: float) -> float:
+        return round(score * 100, 2)
 
-    def do_say(self, arg):
-        print("You said", '"' + arg + '"')
+    @staticmethod
+    def get_icon(percentile: int, score: float) -> str:
+        if score < 0:
+            return "🧊"
+        for (low, high), icon in TerminalUI.ICONS.items():
+            if low < percentile <= high:
+                return icon
+        return "🥶"
 
-    def do_test(self, line):
-        print(self.cache)
+    @staticmethod
+    def get_color(percentile: int) -> str:
+        if percentile > 990:
+            return "red"
+        elif percentile > 900:
+            return "yellow"
+        elif percentile > 800:
+            return "green"
+        return "white"
 
-    def do_print(self, line):
-        row = self.lastRow
-        row["word"] = line
-        self.print_row(self, row, bold=True)
-
-    def do_debug(self, line):
-        print(f"Game #{self.num}")
-        print("This is the unsorted cache:")
-        print(self.cache)
-        print("This is the unsorted cache index table:")
-        print(self.cache_idx)
-        print("This is the sorted cache:")
-        print(self.s_cache)
-
-    def do_loadFile(self, num):
-        """Load the file into a dictionary"""
-        self.filename = prefix + str(num) + ".csv"
-        self.num = num
-        # if cachePath doesn't exist, create it
-        if not os.path.exists(cachePath):
-            os.makedirs(cachePath)
+    @staticmethod
+    def get_terminal_size() -> tuple[int, int]:
         try:
-            with open(cachePath + self.filename, "r") as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    self.cache.append(row)
-        except FileNotFoundError:
-            print("No cache file found")
+            size = os.get_terminal_size()
+            return size.lines, size.columns
+        except OSError:
+            return 24, 80
+
+    @staticmethod
+    def format_row(result: GameResult, idx: int, total: int, bold: bool = False) -> str:
+        temp = TerminalUI.temp_to_degrees(result.score)
+        icon = TerminalUI.get_icon(result.percentile, result.score)
+        color = TerminalUI.get_color(result.percentile)
+        bar = "◼" * (result.percentile // 50) + " " * (20 - result.percentile // 50)
+
+        fmt_args = {
+            "idx": idx,
+            "word": result.word,
+            "temp": temp,
+            "icon": icon,
+            "percent": result.percentile,
+            "bar": bar,
+            "total": f"{idx}/{total}",
+        }
+
+        template = "| {idx:>4}{word:>20} {temp:>6}°C {icon:>3}{percent:>5} {bar:<20} {total:>7} |"
+
+        text = template.format(**fmt_args, solvers=result.solvers)
+        attrs: list[Any] = ["bold"] if bold else []
+        return colored(text, color, attrs=attrs)  # type: ignore[arg-type]
+
+    @staticmethod
+    def format_header(result: GameResult, response_time: float) -> str:
+        temp = TerminalUI.temp_to_degrees(result.score)
+        icon = TerminalUI.get_icon(result.percentile, result.score)
+        time_ms = f"{response_time * 1000:.1f}ms"
+
+        text = f"| {'':<4}{result.word:>20} {temp:>6}°C {icon:>3}{result.percentile:>5} Solvers:{result.solvers:>6} {time_ms:>13} |"
+
+        return colored(text, "white", attrs=["bold"])
+
+        return colored(text, "white", attrs=["bold"])
+
+
+class CemantixCLI:
+    def __init__(self, lang: str = "fr"):
+        self.game = CemantixGame(lang)
+        self.ui = TerminalUI()
+        self.prompt = f"{self.game.state.game_name}> "
+        self._histfile: Path | None = None
+        self._message: str = ""
+        self._welcome_shown: bool = False
+        self._init_readline()
+
+    def _init_readline(self) -> None:
+        if not READLINE_AVAILABLE:
+            return
+        histfile = Path.home() / ".cemantix_history"
+        try:
+            import readline
+            from functools import partial
+
+            readline.read_history_file(histfile)
+
+            def completer(text, state):
+                commands = [
+                    "help",
+                    "nearby",
+                    "history",
+                    "printCache",
+                    "cls",
+                    "quit",
+                    "exit",
+                ]
+                text = text.lstrip("/")
+                matches = [c for c in commands if c.startswith(text)]
+                if state < len(matches):
+                    return matches[state]
+                return None
+
+            readline.set_completer(completer)
+            readline.parse_and_bind("tab: complete")
+        except Exception:
+            pass
+        self._histfile = histfile
+
+    def _save_history(self) -> None:
+        if not READLINE_AVAILABLE or self._histfile is None:
+            return
+        try:
+            import readline
+
+            readline.write_history_file(self._histfile)
+        except Exception:
             pass
 
-    def do_printScreenSize(self, line):
-        """Print the screen size"""
-        print(self.limit)
+    def run(self) -> None:
+        self.game.load_cache()
 
-    # define a function that prints N lines of the cache depending
-    # on the number of lines the display permits
-    def do_printCache(self, word):
-        """Print the cache"""
-        self.loadCache()
-        i = 1
-
-        for row in self.s_cache:
+        while True:
             try:
-                row["percentile"] = row["percentile"] if "percentile" in row else 0
-                row["idx"] = i
-                if row["word"] == word:
-                    self.print_row(row, i, solvers=False, bold=True)
+                self._display_cache()
+                cmd = input(self.prompt).strip()
+
+                if not cmd:
+                    continue
+                elif cmd.startswith("/"):
+                    self._handle_command(cmd[1:])
                 else:
-                    self.print_row(row, i)
-                # s_cache is the sorted cache, cache is the unsorted cache
-                # so look for the current line in the unsorted cache and return
-                # its index
-                i += 1
-            except KeyError:
-                pass
-            if i >= self.limit:
+                    self._handle_guess(cmd)
+
+                self._save_history()
+
+            except KeyboardInterrupt:
+                print("\nAu revoir!")
+                self._save_history()
+                break
+            except EOFError:
+                self._save_history()
                 break
 
-    def do_greet(self, line):
-        print("hello")
+    def _display_cache(self) -> None:
+        import sys
 
-    def do_cls(self, line):
-        return self.cls()
+        os.system("cls" if os.name == "nt" else "clear")
+        sys.stderr.flush()
+        sys.stdout.flush()
 
-    def do_quit(self, line):
-        return True
-
-    def do_nearby(self, line):
-        """
-        Get nearby words
-        """
-        if self.s_cache[0]["percentile"] == 1000:
-            word = self.s_cache[0]["word"]
-            ret = self.post("nearby", {"word": word})
-            sorted_data = dict(
-                sorted(ret.items(), key=lambda item: item[1][0], reverse=True)
+        if not self._welcome_shown:
+            print(
+                f"Welcome to {self.game.state.game_name} (Game #{self.game.state.num})\n"
             )
-            i, t = 0, {}
-            self.cls()
-            for key, values in sorted_data.items():
-                t["idx"] = i
-                t["word"] = key
-                t["percentile"] = values[0]
-                t["score"] = round(float(values[1]), 4)
-                i += 1
-                if i < (self.limit + 3):
-                    # self.print_row(t, i)
-                    print(
-                        "| {:3} {:20} {:3} {:6.2f}°C {:4} ".format(
-                            i,
-                            t["word"],
-                            self.icon(t["percentile"], t["score"]),
-                            t["score"],
-                            t["percentile"],
-                        )
-                    )
-        else:
-            print("Cheater !")
+            self._welcome_shown = True
 
-    def do_reset(self, line):
-        """Resets the current game"""
-        # This command resets the game so the cache is flushed
-        self.cache = []
-        # Make a backup just in case
-        shutil.move(self.filename, self.filename.replace("csv", "bak.csv"))
-        self.init()
+        rows, _ = self.ui.get_terminal_size()
+        max_lines = rows - 3
 
-    def do_history(self, line):
-        """Print the history of words and their scores"""
-        self.limit = self.getScreenSize()[0] - 3
-        ret = self.get("history")
-        self.cls()
-        print("History:")
-        for i in range(0, self.limit + 2):
-            Num = ret[i][0]
-            Solvers = ret[i][1]
-            Word = ret[i][2]
-            # run grep on the cache file to get entries from 1 to 1000
-            # search in given csv file for 1000
-            filename = cachePath + prefix + str(Num) + ".csv"
-            try:
-                with open(filename, "r") as f:
-                    reader = csv.reader(f)
-                    foundMark = "❌"
-                    idx = 0
-                    NTries = ""
-                    for row in reader:
-                        idx = idx + 1
-                        if row[0] == Word:
-                            foundMark = "✅"
-                            NTries = idx
-                    print(
-                        "| {:4} {:4} {:20} {:8} {:1}".format(
-                            Num, NTries, Word, Solvers, foundMark
-                        )
-                    )
-            except FileNotFoundError:
+        if self.game.state.last_result:
+            print(
+                self.ui.format_header(
+                    self.game.state.last_result, self.game.state.last_response_time
+                )
+            )
+
+        sorted_cache = self.game.get_sorted_cache()
+        last_word = (
+            self.game.state.last_result.word if self.game.state.last_result else ""
+        )
+
+        for i, result in enumerate(sorted_cache, 1):
+            if i > max_lines:
+                break
+            bold = result.word == last_word
+            print(self.ui.format_row(result, i, len(sorted_cache), bold=bold))
+
+        if self._message:
+            print(f"\n  >> {self._message} <<")
+            self._message = ""
+
+    def _handle_command(self, cmd: str) -> None:
+        parts = cmd.split()
+        command = parts[0]
+        args = parts[1:]
+
+        match command:
+            case "help":
+                print("""Commandes disponibles:
+  /help       - Afficher cette aide
+  /nearby     - Voir les mots proches (après avoir gagné)
+  /history    - Voir l'historique des parties
+  /printCache - Afficher les mots essayés
+  /cls        - Effacer l'écran
+  /quit       - Quitter""")
+                input("Appuyez sur Entrée pour continuer...")
+
+            case "printCache":
                 pass
 
-    def do_try(self, word):
-        """
-        Send word via POST request to cemantix_url and return its score
-        """
-        # If the date is different from the one in the cache, we have to re-initialiaze the game
-        if self.startDate != date.today():
-            self.init()
-        self.limit = self.getScreenSize()[0] - 3
-        #   self.cls()
-        self.loadCache()
-        response = self.postWord("score", word)
+            case "nearby":
+                if not self.game.state.cache:
+                    self._message = "Aucun mot trouvé"
+                    return
+                top = max(self.game.state.cache, key=lambda r: r.percentile)
+                if top.percentile < 1000:
+                    self._message = "Il faut d'abord trouver le mot !"
+                    return
 
-        self.cls()
+                nearby = self.game.get_nearby(top.word)
+                self._message = f"Mots proches de '{top.word}':"
+                self._display_cache()
+                sorted_nearby = sorted(
+                    nearby.items(), key=lambda x: x[1][0], reverse=True
+                )
+                total = len(sorted_nearby)
+                rows, _ = self.ui.get_terminal_size()
+                max_lines = rows - 3
+                for idx, (word, (p, s)) in enumerate(sorted_nearby, 1):
+                    if idx > max_lines:
+                        break
+                    # /nearby returns the score already in degrees (unlike /score
+                    # which returns a 0-1 fraction), so normalize before format_row
+                    result = GameResult(word=word, score=s / 100, percentile=p)
+                    print(self.ui.format_row(result, idx, total))
+                input("Appuyez sur Entrée pour continuer...")
+
+            case "history":
+                history = self.game.get_history()
+                prefix = self.game.state.prefix
+                print("")
+                for entry in history[:20]:
+                    num, solvers, word = entry
+                    # Use local CSV to check if WE solved it, and get the word
+                    # (the server doesn't reveal today's word until the day is over)
+                    solved_word = self.game.check_game_solved(num, prefix)
+                    status = "✅" if solved_word else "❌"
+                    color = "green" if solved_word else "red"
+                    display_word = word or solved_word or "(non trouvé)"
+                    print(
+                        colored(
+                            f"| {num:>4} {status} {solvers:>6} {display_word:<20}",
+                            color,
+                        )
+                    )
+                input("Appuyez sur Entrée pour continuer...")
+
+            case "cls":
+                pass  # _display_cache will be called next loop
+
+            case "quit" | "exit":
+                raise EOFError
+
+            case _:
+                self._message = f"Commande inconnue: /{command}"
+
+    def _handle_guess(self, word: str) -> None:
         try:
-            response["percentile"] = response["p"]
-        except KeyError:
-            response["percentile"] = 0
-
-        try:
-            response["score"] = round(response["s"], 4)
-        except KeyError:
-            response["score"] = 0
-
-        rcode = "Ok"
-
-        try:
-            response["error"] = response["e"]
-            rcode = "Error"
-            print(re.sub("<[^<]+?>", "", response["error"]))
-            print()
-        except KeyError:
-            pass
-
-        self.lastRow = response
-        self.lastRow["word"] = word
-        if rcode == "Ok":
-            try:
-                if int(response["percentile"]) == 1000:
-                    print("Gagné !")
-
-                rcode = "Ok"
-            except KeyError:
-                response["percentile"] = 0
-                rcode = "Error"
-            row = [word, response["score"], response["percentile"]]
-            self.writeCacheLine(row)
-
-        #  s_idx = 1
-        self.print_row(self, self.lastRow, 0, response["score"])
-        self.do_printCache(word)
+            result = self.game.guess(word)
+            if result and result.percentile == 1000:
+                self._message = f"🎉 Gagné! Mot trouvé: {word}"
+        except ValueError as e:
+            self._message = f"Erreur: {e}"
+        except requests.RequestException as e:
+            self._message = f"Erreur: {e}"
 
 
 if __name__ == "__main__":
-    Cemantix().cmdloop()
+    import os
+    import sys
+
+    lang = sys.argv[1] if len(sys.argv) > 1 else "fr"
+    CemantixCLI(lang).run()

@@ -8,6 +8,14 @@ Now you can choose between php-cli or python3 version
 Both versions are not quite on par, python version offers basic functionnality while php-cli is a bit more advanced
 Python version supports game in english language (use "en" as an argument, "fr" is used by default)
 
+Python requirements
+
+```bash
+pip install -r requirements.txt
+```
+
+On Windows / WSL, use [Windows Terminal](https://apps.microsoft.com/detail/9n0dx20hk701) rather than the default console — the game output relies on emojis that stock console hosts fail to render.
+
 ![Screenshot](doc/screenshot.png)
 
 ## Supported commands
