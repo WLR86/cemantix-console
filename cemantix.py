@@ -5,20 +5,25 @@ import csv
 import configparser
 import os
 import re
+import sys
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from termcolor import colored
 
 try:
     import readline
-
-    READLINE_AVAILABLE = True
 except ImportError:
-    READLINE_AVAILABLE = False
+    readline = None
+
+CACHE_DIR = Path.home() / ".cemantix"
+
+
+def cache_file_path(prefix: str, game_num: int) -> Path:
+    return CACHE_DIR / f"{prefix}{game_num}.csv"
 
 
 @dataclass
@@ -37,7 +42,7 @@ class GameState:
     game_name: str = ""
     prefix: str = ""
     cache: list[GameResult] = field(default_factory=list)
-    last_result: Optional[GameResult] = None
+    last_result: GameResult | None = None
     last_response_time: float = 0.0
 
 
@@ -62,19 +67,18 @@ class CemantixGame:
         game_num = (date.today() - origin).days + 1
         url = settings["cemantix_url"]
 
-        cache_dir = Path.home() / ".cemantix"
-        cache_dir.mkdir(mode=0o755, exist_ok=True)
+        CACHE_DIR.mkdir(mode=0o755, exist_ok=True)
 
         return GameState(
             num=game_num,
-            cache_path=cache_dir / f"{settings['prefix']}{game_num}.csv",
+            cache_path=cache_file_path(settings["prefix"], game_num),
             url=url,
             game_name=settings["game_name"],
             prefix=settings["prefix"],
         )
 
-    def guess(self, word: str) -> GameResult | None:
-        """Propose un mot et retourne le résultat, ou None si le mot n'existe pas"""
+    def guess(self, word: str) -> GameResult:
+        """Propose un mot et retourne le résultat (lève ValueError si le mot n'existe pas)"""
         response = self.session.post(
             f"{self.state.url}/score?n={self.state.num}",
             headers=self.headers,
@@ -118,10 +122,10 @@ class CemantixGame:
         response.raise_for_status()
         return response.json()  # [[num, solvers, word], ...]
 
-    def check_game_solved(self, game_num: int, prefix: str) -> Optional[str]:
-        """Vérifie si une partie a été résolue en analysant le CSV local, et
-        retourne le mot trouvé (le serveur ne révèle pas le mot du jour en cours)"""
-        cache_file = Path.home() / ".cemantix" / f"{prefix}{game_num}.csv"
+    def get_solved_word(self, game_num: int, prefix: str) -> str | None:
+        """Retourne le mot trouvé pour cette partie en analysant le CSV local,
+        ou None si non résolue (le serveur ne révèle pas le mot du jour en cours)"""
+        cache_file = cache_file_path(prefix, game_num)
         if not cache_file.exists():
             return None
         try:
@@ -129,7 +133,7 @@ class CemantixGame:
                 for row in csv.reader(f):
                     if len(row) >= 3 and row[2] == "1000":
                         return row[0]
-        except Exception:
+        except (OSError, csv.Error, IndexError):
             pass
         return None
 
@@ -242,8 +246,6 @@ class TerminalUI:
 
         return colored(text, "white", attrs=["bold"])
 
-        return colored(text, "white", attrs=["bold"])
-
 
 class CemantixCLI:
     def __init__(self, lang: str = "fr"):
@@ -256,45 +258,40 @@ class CemantixCLI:
         self._init_readline()
 
     def _init_readline(self) -> None:
-        if not READLINE_AVAILABLE:
+        if readline is None:
             return
         histfile = Path.home() / ".cemantix_history"
         try:
-            import readline
-            from functools import partial
-
             readline.read_history_file(histfile)
+        except OSError:
+            pass  # pas d'historique existant, on partira d'un fichier vide
 
-            def completer(text, state):
-                commands = [
-                    "help",
-                    "nearby",
-                    "history",
-                    "printCache",
-                    "cls",
-                    "quit",
-                    "exit",
-                ]
-                text = text.lstrip("/")
-                matches = [c for c in commands if c.startswith(text)]
-                if state < len(matches):
-                    return matches[state]
-                return None
+        def completer(text, state):
+            commands = [
+                "help",
+                "nearby",
+                "history",
+                "printCache",
+                "cls",
+                "quit",
+                "exit",
+            ]
+            text = text.lstrip("/")
+            matches = [c for c in commands if c.startswith(text)]
+            if state < len(matches):
+                return matches[state]
+            return None
 
-            readline.set_completer(completer)
-            readline.parse_and_bind("tab: complete")
-        except Exception:
-            pass
+        readline.set_completer(completer)
+        readline.parse_and_bind("tab: complete")
         self._histfile = histfile
 
     def _save_history(self) -> None:
-        if not READLINE_AVAILABLE or self._histfile is None:
+        if readline is None or self._histfile is None:
             return
         try:
-            import readline
-
             readline.write_history_file(self._histfile)
-        except Exception:
+        except OSError:
             pass
 
     def run(self) -> None:
@@ -323,8 +320,6 @@ class CemantixCLI:
                 break
 
     def _display_cache(self) -> None:
-        import sys
-
         os.system("cls" if os.name == "nt" else "clear")
         sys.stderr.flush()
         sys.stdout.flush()
@@ -362,8 +357,9 @@ class CemantixCLI:
 
     def _handle_command(self, cmd: str) -> None:
         parts = cmd.split()
+        if not parts:
+            return
         command = parts[0]
-        args = parts[1:]
 
         match command:
             case "help":
@@ -409,12 +405,14 @@ class CemantixCLI:
             case "history":
                 history = self.game.get_history()
                 prefix = self.game.state.prefix
+                rows, _ = self.ui.get_terminal_size()
+                max_lines = rows - 3
                 print("")
-                for entry in history[:20]:
+                for entry in history[:max_lines]:
                     num, solvers, word = entry
                     # Use local CSV to check if WE solved it, and get the word
                     # (the server doesn't reveal today's word until the day is over)
-                    solved_word = self.game.check_game_solved(num, prefix)
+                    solved_word = self.game.get_solved_word(num, prefix)
                     status = "✅" if solved_word else "❌"
                     color = "green" if solved_word else "red"
                     display_word = word or solved_word or "(non trouvé)"
@@ -438,7 +436,7 @@ class CemantixCLI:
     def _handle_guess(self, word: str) -> None:
         try:
             result = self.game.guess(word)
-            if result and result.percentile == 1000:
+            if result.percentile == 1000:
                 self._message = f"🎉 Gagné! Mot trouvé: {word}"
         except ValueError as e:
             self._message = f"Erreur: {e}"
@@ -447,8 +445,5 @@ class CemantixCLI:
 
 
 if __name__ == "__main__":
-    import os
-    import sys
-
     lang = sys.argv[1] if len(sys.argv) > 1 else "fr"
     CemantixCLI(lang).run()
