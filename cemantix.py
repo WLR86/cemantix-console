@@ -371,6 +371,50 @@ class CemantixCLI:
             print(f"\n  >> {self._message} <<")
             self._message = ""
 
+    def _show_nearby_pager(
+        self, word: str, sorted_nearby: list[tuple[str, tuple[int, float]]]
+    ) -> None:
+        # /nearby returns the score already in degrees (unlike /score
+        # which returns a 0-1 fraction), so normalize before format_row
+        results = [
+            GameResult(word=w, score=s / 100, percentile=p)
+            for w, (p, s) in sorted_nearby
+        ]
+        total = len(results)
+        page = 0
+
+        while True:
+            rows, _ = self.ui.get_terminal_size()
+            page_size = max(1, rows - 4)
+            last_page = (total - 1) // page_size if total else 0
+            page = max(0, min(page, last_page))
+            start = page * page_size
+            chunk = results[start : start + page_size]
+
+            os.system("cls" if os.name == "nt" else "clear")
+            print(
+                f"Mots proches de '{word}' — page {page + 1}/{last_page + 1} "
+                f"(rangs {start + 1}-{start + len(chunk)}/{total})\n"
+            )
+            for i, result in enumerate(chunk, start + 1):
+                print(self.ui.format_row(result, i, total))
+
+            print(
+                "\n[Entrée]=suivant  p=précédent  <numéro>=aller au rang  "
+                "q=quitter"
+            )
+            choice = input("> ").strip().lower()
+
+            if choice in ("q", "quit", "exit"):
+                return
+            elif choice == "p":
+                page -= 1
+            elif choice.isdigit():
+                rank = max(1, min(total, int(choice)))
+                page = (rank - 1) // page_size
+            else:
+                page += 1
+
     def _handle_command(self, cmd: str) -> None:
         parts = cmd.split()
         if not parts:
@@ -407,22 +451,10 @@ class CemantixCLI:
                     return
 
                 nearby = self.game.get_nearby(top.word)
-                self._message = f"Mots proches de '{top.word}':"
-                self._display_cache()
                 sorted_nearby = sorted(
                     nearby.items(), key=lambda x: x[1][0], reverse=True
                 )
-                total = len(sorted_nearby)
-                rows, _ = self.ui.get_terminal_size()
-                max_lines = rows - 3
-                for idx, (word, (p, s)) in enumerate(sorted_nearby, 1):
-                    if idx > max_lines:
-                        break
-                    # /nearby returns the score already in degrees (unlike /score
-                    # which returns a 0-1 fraction), so normalize before format_row
-                    result = GameResult(word=word, score=s / 100, percentile=p)
-                    print(self.ui.format_row(result, idx, total))
-                input("Appuyez sur Entrée pour continuer...")
+                self._show_nearby_pager(top.word, sorted_nearby)
 
             case "history":
                 history = self.game.get_history()
