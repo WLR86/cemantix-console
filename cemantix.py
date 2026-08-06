@@ -346,6 +346,8 @@ class CemantixCLI:
 
         rows, _ = self.ui.get_terminal_size()
         max_lines = rows - 3
+        if self._message:
+            max_lines -= 2  # room for the blank line + message printed below
 
         if self.game.state.last_result:
             print(
