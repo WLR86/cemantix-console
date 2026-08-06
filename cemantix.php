@@ -265,9 +265,9 @@ class Cemantix
         } elseif (!empty($row['percentile'])) {
             $color = '93';
         }
-        echo "\e[$style;${color}m";
+        echo "\e[$style;{$color}m";
         echo sprintf(
-            "\e[$style;${color}m*\e[0m\e[${style}m %4s",
+            "\e[$style;{$color}m*\e[0m\e[{$style}m %4s",
             $row['idx']
         ) .self::mb_str_pad(
             $row['word'],
@@ -277,13 +277,13 @@ class Cemantix
         )
             .
             sprintf(
-                " : %6.2f°C $icon \e[$style;${color}m%4s\e[0m\e[${style}m",
+                " : %6.2f°C $icon \e[$style;{$color}m%4s\e[0m\e[{$style}m",
                 $row['score'] * 1E2,
                 $row['percentile'] > 0 ? $row['percentile'] : ''
             );
         if (!is_null($s_idx)) {
             printf(
-                " \e[$style;${color}m%20s\e[0m\e[${style}m%4s/%-3s ",
+                " \e[$style;{$color}m%20s\e[0m\e[{$style}m%4s/%-3s ",
                 self::mb_str_pad(
                     str_repeat('◼', $row['percentile'] * 2E-2),
                     self::$padding,
@@ -344,7 +344,7 @@ class Cemantix
             $color = ($line > 0) ? "97" : "90" ;
             $line  = ($line == 0) ? "  " : $line ;
             echo sprintf(
-                "\e[0;${color}m*\t%4u\t%7u\t".
+                "\e[0;{$color}m*\t%4u\t%7u\t".
                 self::mb_str_pad($W, 20, ' ', STR_PAD_LEFT).
                 "\t%5s ".$found."\t\e[0m\n",
                 $N,
