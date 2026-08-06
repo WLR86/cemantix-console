@@ -16,12 +16,19 @@ class Cemantix
     public static $num        = 0 ;
     public static $commands   = ['/help','/quit','/exit','/restart','/nearby','/history','load'];
 
-    private static function returnStartDate()
+    /**
+     * @return string
+     */
+    private static function returnStartDate(): string
     {
         return self::$startDate ;
     }
 
-    private static function cfgCurl($curl)
+    /**
+     * @param \CurlHandle $curl
+     * @return void
+     */
+    private static function cfgCurl($curl): void
     {
         curl_setopt_array($curl, array(
             CURLOPT_RETURNTRANSFER => true,
@@ -34,7 +41,11 @@ class Cemantix
 
     }
 
-    private static function get($item)
+    /**
+     * @param string $item
+     * @return mixed
+     */
+    private static function get($item): mixed
     {
         $curl = curl_init();
         self::cfgCurl($curl);
@@ -54,7 +65,12 @@ class Cemantix
         return $ret ;
     }
 
-    private static function postWord($action, $word = null)
+    /**
+     * @param string $action
+     * @param string|null $word
+     * @return mixed
+     */
+    private static function postWord($action, $word = null): mixed
     {
         $curl = curl_init();
         self::cfgCurl($curl);
@@ -89,13 +105,20 @@ class Cemantix
         return $ret;
     }
 
-    private static function cls()
+    /**
+     * @return void
+     */
+    private static function cls(): void
     {
         echo chr(27).chr(91).'H'.
              chr(27).chr(91).'J';
     }
 
-    private static function loadCache($num)
+    /**
+     * @param int $num
+     * @return void
+     */
+    private static function loadCache($num): void
     {
         self::$cache_path = str_replace(
             '~',
@@ -122,7 +145,12 @@ class Cemantix
         }
     }
 
-    private static function sorter($a, $b)
+    /**
+     * @param array $a
+     * @param array $b
+     * @return bool
+     */
+    private static function sorter($a, $b): bool
     {
         if ($a['percentile'] != $b['percentile']) {
             return $b['percentile'] > $a['percentile'];
@@ -130,19 +158,31 @@ class Cemantix
         return $b['score'] > $a['score'];
     }
 
-    private static function writeCacheLine($row)
+    /**
+     * @param array $row
+     * @return void
+     */
+    private static function writeCacheLine($row): void
     {
         $handle = fopen(self::$cache_path."cem".self::$num.".csv", "a");
         fputcsv($handle, $row);
         fclose($handle);
     }
 
-    private static function completeCmd($str)
+    /**
+     * @param string $str
+     * @return array
+     */
+    private static function completeCmd($str): array
     {
         return self::$commands ;
     }
 
-    private static function loadFile($num)
+    /**
+     * @param int|string $num
+     * @return void
+     */
+    private static function loadFile($num): void
     {
         if ($num == 'today') {
             $num = self::getNum() ;
@@ -152,7 +192,10 @@ class Cemantix
         self::print();
     }
 
-    private static function init()
+    /**
+     * @return void
+     */
+    private static function init(): void
     {
         self::$startDate = date('Ymd');
         self::$num = self::getNum();
@@ -160,7 +203,10 @@ class Cemantix
         self::print();
     }
 
-    private static function getNum()
+    /**
+     * @return int
+     */
+    private static function getNum(): int
     {
         $origin = new DateTime("2022-03-03");
 
@@ -178,8 +224,15 @@ class Cemantix
      * str_pad handling multibyte encoding
      *
      * https://stackoverflow.com/a/14773638
+     *
+     * @param string $input
+     * @param int $pad_length
+     * @param string $pad_string
+     * @param int $pad_type
+     * @param string $encoding
+     * @return string
      */
-    private static function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_RIGHT, $encoding = 'UTF-8')
+    private static function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_RIGHT, $encoding = 'UTF-8'): string
     {
         $input_length = mb_strlen($input, $encoding);
         $pad_string_length = mb_strlen($pad_string, $encoding);
@@ -229,7 +282,14 @@ class Cemantix
         return $result;
     }
 
-    private static function print_row($row, $s_idx = null, $bold = false, $solvers = null)
+    /**
+     * @param array $row
+     * @param int|null $s_idx
+     * @param bool $bold
+     * @param int|null $solvers
+     * @return void
+     */
+    private static function print_row($row, $s_idx = null, $bold = false, $solvers = null): void
     {
         $style = '0';
         $color = '0';
@@ -299,7 +359,11 @@ class Cemantix
         echo "\e[0m\n";
     }
 
-    private static function print($word = null)
+    /**
+     * @param string|null $word
+     * @return void
+     */
+    private static function print($word = null): void
     {
         self::getScreenSize();
         self::cls();
@@ -326,7 +390,10 @@ class Cemantix
         }
     }
 
-    private static function history()
+    /**
+     * @return void
+     */
+    private static function history(): void
     {
         $ret = self::get('history');
         self::cls();
@@ -354,7 +421,10 @@ class Cemantix
         }
     }
 
-    private static function nearby()
+    /**
+     * @return void
+     */
+    private static function nearby(): void
     {
         if (self::$s_cache[0]['percentile'] == 1000) {
             $ret = self::postWord('nearby', self::$s_cache[0]['word']);
@@ -369,6 +439,7 @@ class Cemantix
                 $i++ ;
 
                 if ($i < (self::$limit + 3)) {
+                    $t = [];
                     $t['idx']        = $i;
                     $t['word']       = $item;
                     $t['score']      = $values[1] / 100;
@@ -381,7 +452,10 @@ class Cemantix
         }
     }
 
-    private static function help()
+    /**
+     * @return void
+     */
+    private static function help(): void
     {
         self::cls();
         echo "
@@ -410,17 +484,26 @@ class Cemantix
 		";
     }
 
-    private static function debug()
+    /**
+     * @return void
+     */
+    private static function debug(): void
     {
         echo self::$lastResp;
     }
 
-    private static function stop()
+    /**
+     * @return void
+     */
+    private static function stop(): void
     {
         exit ;
     }
 
-    private static function clean()
+    /**
+     * @return void
+     */
+    private static function clean(): void
     {
         $num = self::get('stats')->num ;
         self::$num = $num ;
@@ -434,7 +517,12 @@ class Cemantix
         self::start();
     }
 
-    private static function cmd($cmd, $params = null)
+    /**
+     * @param string $cmd
+     * @param string|null $params
+     * @return void
+     */
+    private static function cmd($cmd, $params = null): void
     {
         switch ($cmd) {
             case 'nearby':
@@ -470,7 +558,10 @@ class Cemantix
         }
     }
 
-    private static function getScreenSize()
+    /**
+     * @return void
+     */
+    private static function getScreenSize(): void
     {
         preg_match_all(
             "/rows.([0-9]+);.columns.([0-9]+);/",
@@ -482,7 +573,10 @@ class Cemantix
         }
     }
 
-    public static function start()
+    /**
+     * @return void
+     */
+    public static function start(): void
     {
         self::getScreenSize();
         self::init();
