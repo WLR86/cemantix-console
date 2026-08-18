@@ -20,6 +20,7 @@ except ImportError:
     readline = None
 
 CACHE_DIR = Path.home() / ".cemantix"
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "config.ini"
 
 
 def cache_file_path(prefix: str, game_num: int) -> Path:
@@ -47,7 +48,7 @@ class GameState:
 
 
 class CemantixGame:
-    def __init__(self, lang: str = "fr", config_path: str = "config.ini"):
+    def __init__(self, lang: str = "fr", config_path: str | Path = DEFAULT_CONFIG_PATH):
         self.session = requests.Session()
         self.state = self._load_config(lang, config_path)
         self.headers = {
@@ -55,7 +56,7 @@ class CemantixGame:
             "Referer": self.state.url,
         }
 
-    def _load_config(self, lang: str, config_path: str) -> GameState:
+    def _load_config(self, lang: str, config_path: str | Path) -> GameState:
         config = configparser.ConfigParser()
         config.read(config_path)
 
