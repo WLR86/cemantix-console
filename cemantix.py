@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Cémantix CLI - Interface pour le jeu Cémantix"""
 
-import csv
 import configparser
+import csv
 import os
 import re
 import sys
@@ -400,10 +400,7 @@ class CemantixCLI:
             for i, result in enumerate(chunk, start + 1):
                 print(self.ui.format_row(result, i, total))
 
-            print(
-                "\n[Entrée]=suivant  p=précédent  <numéro>=aller au rang  "
-                "q=quitter"
-            )
+            print("\n[Entrée]=suivant  p=précédent  <numéro>=aller au rang  q=quitter")
             choice = input("> ").strip().lower()
 
             if choice in ("q", "quit", "exit"):
@@ -462,7 +459,7 @@ class CemantixCLI:
                 prefix = self.game.state.prefix
                 rows, _ = self.ui.get_terminal_size()
                 max_lines = rows - 3
-                print("")
+                print()
                 for entry in history[:max_lines]:
                     num, solvers, word = entry
                     # Use local CSV to check if WE solved it, and get the word
