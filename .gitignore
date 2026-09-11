@@ -1,3 +1,5 @@
 *.swp
 tags
 .php-cs-fixer.cache
+.php-cs-fixer.dist.php
+__pycache__
