@@ -39,12 +39,16 @@ class GameResult:
 class GameState:
     num: int
     cache_path: Path
+    origin: date
     url: str = ""
     game_name: str = ""
     prefix: str = ""
     cache: list[GameResult] = field(default_factory=list)
     last_result: GameResult | None = None
     last_response_time: float = 0.0
+    # Numéro de la nouvelle partie si un changement de jour a été détecté
+    # lors de la dernière soumission, sinon None
+    rollover: int | None = None
 
 
 class CemantixGame:
@@ -73,13 +77,42 @@ class CemantixGame:
         return GameState(
             num=game_num,
             cache_path=cache_file_path(settings["prefix"], game_num),
+            origin=origin,
             url=url,
             game_name=settings["game_name"],
             prefix=settings["prefix"],
         )
 
+    @property
+    def today_num(self) -> int:
+        """Numéro de la partie correspondant à la date du jour"""
+        return (date.today() - self.state.origin).days + 1
+
+    def check_new_day(self) -> int | None:
+        """Détecte un changement de jour en cours de partie (et donc un
+        nouveau mot à trouver). Le cas échéant, la partie en cours est
+        sauvegardée (backup) puis la nouvelle partie est chargée.
+
+        Retourne le numéro de la nouvelle partie, ou None si on est
+        toujours sur la même partie."""
+        new_num = self.today_num
+        self.state.rollover = None
+        if new_num == self.state.num:
+            return None
+
+        self.reset()  # backup de l'ancien cache puis remise à zéro
+        self.state.num = new_num
+        self.state.cache_path = cache_file_path(self.state.prefix, new_num)
+        self.state.rollover = new_num
+        self.load_cache()  # mots déjà essayés pour la nouvelle partie, le cas échéant
+        return new_num
+
     def guess(self, word: str) -> GameResult:
         """Propose un mot et retourne le résultat (lève ValueError si le mot n'existe pas)"""
+        # Si la date a changé, le mot du jour aussi : on relance la
+        # partie avant de soumettre le mot à la nouvelle partie
+        self.check_new_day()
+
         response = self.session.post(
             f"{self.state.url}/score?n={self.state.num}",
             headers=self.headers,
@@ -488,12 +521,21 @@ class CemantixCLI:
     def _handle_guess(self, word: str) -> None:
         try:
             result = self.game.guess(word)
-            if result.percentile == 1000:
-                self._message = f"🎉 Gagné! Mot trouvé: {word}"
+            message = f"🎉 Gagné! Mot trouvé: {word}" if result.percentile == 1000 else ""
         except ValueError as e:
-            self._message = f"Erreur: {e}"
+            message = f"Erreur: {e}"
         except requests.RequestException as e:
-            self._message = f"Erreur: {e}"
+            message = f"Erreur: {e}"
+
+        rollover = self.game.state.rollover
+        if rollover is not None:
+            # Affiche à nouveau l'en-tête avec le nouveau numéro de partie
+            self._welcome_shown = False
+            note = f"📅 Le jour a changé : nouvelle partie #{rollover} relancée."
+            message = f"{note} {message}".rstrip()
+
+        if message:
+            self._message = message
 
 
 if __name__ == "__main__":
