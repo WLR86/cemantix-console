@@ -50,6 +50,9 @@ cp /tmp/cem*.csv ~/.cemantix/
 
 ## To-Do
 
+- [X] Midnight rollover: if the day (and therefore the word to guess)
+  changes while a game is running, submitting a word detects it, saves
+  the previous game (backup) and restarts on the new one
 - [X] History (previous words and their status "found"/"not found")
 - [X] New commands (/history, /exit, /quit, /reset, /restart)
 - [X] Command completion
