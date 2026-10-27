@@ -27,6 +27,12 @@ def cache_file_path(prefix: str, game_num: int) -> Path:
     return CACHE_DIR / f"{prefix}{game_num}.csv"
 
 
+def cache_backup_path(cache_path: Path) -> Path:
+    """Chemin du backup créé quand la partie est remise à zéro
+    (/reset) ou relancée suite à un changement de jour"""
+    return cache_path.with_name(f"{cache_path.stem}.bak.csv")
+
+
 @dataclass
 class GameResult:
     word: str
@@ -158,27 +164,29 @@ class CemantixGame:
 
     def get_solved_word(self, game_num: int, prefix: str) -> str | None:
         """Retourne le mot trouvé pour cette partie en analysant le CSV local,
-        ou None si non résolue (le serveur ne révèle pas le mot du jour en cours)"""
+        ou None si non résolue (le serveur ne révèle pas le mot du jour en cours).
+
+        Le backup est consulté lui aussi : une partie remise à zéro (ou
+        relancée à cause d'un changement de jour) voit son CSV renommé,
+        il n'est donc plus à sa place d'origine."""
         cache_file = cache_file_path(prefix, game_num)
-        if not cache_file.exists():
-            return None
-        try:
-            with open(cache_file, "r") as f:
-                for row in csv.reader(f):
-                    if len(row) >= 3 and row[2] == "1000":
-                        return row[0]
-        except (OSError, csv.Error, IndexError):
-            pass
+        for path in (cache_file, cache_backup_path(cache_file)):
+            if not path.exists():
+                continue
+            try:
+                with open(path, "r") as f:
+                    for row in csv.reader(f):
+                        if len(row) >= 3 and row[2] == "1000":
+                            return row[0]
+            except (OSError, csv.Error, IndexError):
+                pass
         return None
 
     def reset(self) -> None:
         """Réinitialise la partie en cours : sauvegarde le cache existant
         (au cas où) puis repart de zéro"""
         if self.state.cache_path.exists():
-            backup_path = self.state.cache_path.with_name(
-                f"{self.state.cache_path.stem}.bak.csv"
-            )
-            self.state.cache_path.replace(backup_path)
+            self.state.cache_path.replace(cache_backup_path(self.state.cache_path))
         self.state.cache = []
         self.state.last_result = None
         self.state.last_response_time = 0.0
@@ -521,7 +529,9 @@ class CemantixCLI:
     def _handle_guess(self, word: str) -> None:
         try:
             result = self.game.guess(word)
-            message = f"🎉 Gagné! Mot trouvé: {word}" if result.percentile == 1000 else ""
+            message = (
+                f"🎉 Gagné! Mot trouvé: {word}" if result.percentile == 1000 else ""
+            )
         except ValueError as e:
             message = f"Erreur: {e}"
         except requests.RequestException as e:
