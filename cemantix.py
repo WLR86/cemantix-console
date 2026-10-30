@@ -284,7 +284,7 @@ class TerminalUI:
             "total": f"{idx}/{total}",
         }
 
-        template = "| {idx:>4}{word:>20} {temp:>6}°C {icon:>3}{percent:>5} {bar:<20} {total:>7} |"
+        template = "│ {idx:>4}{word:>20} {temp:>6}°C {icon:>3}{percent:>5} {bar:<20} {total:>7} │"
 
         text = template.format(**fmt_args, solvers=result.solvers)
         attrs: list[Any] = ["bold"] if bold else []
@@ -296,7 +296,7 @@ class TerminalUI:
         icon = TerminalUI.get_icon(result.percentile, result.score)
         time_ms = f"{response_time * 1000:.1f}ms"
 
-        text = f"| {'':<4}{result.word:>20} {temp:>6}°C {icon:>3}{result.percentile:>5} Solvers:{result.solvers:>6} {time_ms:>13} |"
+        text = f"│ {'':<4}{result.word:>20} {temp:>6}°C {icon:>3}{result.percentile:>5} Solvers:{result.solvers:>6} {time_ms:>13} │"
 
         return colored(text, "white", attrs=["bold"])
 
@@ -511,7 +511,7 @@ class CemantixCLI:
                     display_word = word or solved_word or "(non trouvé)"
                     print(
                         colored(
-                            f"| {num:>4} {status} {solvers:>6} {display_word:<20}",
+                            f"│ {num:>4} {status} {solvers:>6} {display_word:<20}",
                             color,
                         )
                     )

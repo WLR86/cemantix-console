@@ -48,12 +48,16 @@ mkdir ~/.cemantix
 cp /tmp/cem*.csv ~/.cemantix/
 ```
 
+> [!WARNING]
+> PHP version is longer updated and will soon be removed
+
 ## To-Do
 
-- [X] Midnight rollover: if the day (and therefore the word to guess)
-  changes while a game is running, submitting a word detects it, saves
-  the previous game (backup) and restarts on the new one
-- [X] History (previous words and their status "found"/"not found")
-- [X] New commands (/history, /exit, /quit, /reset, /restart)
-- [X] Command completion
-- [X] Inline help (/help)
+- [ ] Remove PHP version
+- [x] Midnight rollover: if the day (and therefore the word to guess)
+      changes while a game is running, submitting a word detects it, saves
+      the previous game (backup) and restarts on the new one
+- [x] History (previous words and their status "found"/"not found")
+- [x] New commands (/history, /exit, /quit, /reset, /restart)
+- [x] Command completion
+- [x] Inline help (/help)
